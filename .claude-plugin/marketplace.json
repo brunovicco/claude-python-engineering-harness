@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-marketplace.json",
+  "name": "python-engineering-standards",
+  "version": "0.3.0",
+  "description": "Internal marketplace for the Python Engineering Harness, including MCP governance.",
+  "owner": {
+    "name": "Engineering Team"
+  },
+  "plugins": [
+    {
+      "name": "python-engineering-harness",
+      "description": "Python engineering agents, skills, safety hooks, MCP governance, and output style.",
+      "version": "0.3.0",
+      "author": {
+        "name": "Engineering Team"
+      },
+      "source": "./plugin/python-engineering-harness",
+      "category": "development"
+    }
+  ]
+}

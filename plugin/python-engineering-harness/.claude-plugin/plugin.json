@@ -1,0 +1,19 @@
+{
+  "name": "python-engineering-harness",
+  "displayName": "Python Engineering Harness",
+  "version": "0.3.0",
+  "description": "Reusable Python engineering agents, skills, safety hooks, MCP governance, and output style for Claude Code.",
+  "author": {
+    "name": "Engineering Team"
+  },
+  "license": "MIT",
+  "keywords": [
+    "python",
+    "engineering",
+    "security",
+    "quality",
+    "clean-architecture",
+    "mcp"
+  ],
+  "defaultEnabled": false
+}
