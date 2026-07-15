@@ -4,7 +4,7 @@ Validated on 2026-07-15 with Claude Code 2.1.208, Python 3.13.2, and uv 0.11.x.
 
 ## Harness
 
-- 22 repository regression tests passed.
+- 25 repository regression tests passed.
 - Python compilation, Ruff, workflow syntax, and whitespace checks passed.
 - Plugin and marketplace validation passed with the Claude Code CLI.
 - Tests cover rendering, merge conflicts, symlink confinement, validator regressions, hook failure

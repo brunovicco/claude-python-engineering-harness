@@ -5,6 +5,7 @@ import argparse
 import keyword
 import os
 import shutil
+import stat
 import subprocess
 import sys
 import tempfile
@@ -87,13 +88,14 @@ def ensure_within_target(path: Path, target: Path) -> None:
         raise ValueError(f"Rendered destination escapes target directory: {path}") from exc
 
 
-def write_atomic(path: Path, data: bytes) -> None:
-    """Atomically replace a destination after writing it in the same directory."""
+def write_atomic(path: Path, data: bytes, *, mode: int) -> None:
+    """Atomically replace a destination while preserving the template file mode."""
     temporary_name: str | None = None
     try:
         with tempfile.NamedTemporaryFile(dir=path.parent, delete=False) as temporary:
             temporary.write(data)
             temporary.flush()
+            os.fchmod(temporary.fileno(), mode)
             os.fsync(temporary.fileno())
             temporary_name = temporary.name
         os.replace(temporary_name, path)
@@ -125,6 +127,7 @@ def copy_template(template: Path, target: Path, values: dict[str, str], merge: b
 
         destination.parent.mkdir(parents=True, exist_ok=True)
         data = source.read_bytes()
+        mode = stat.S_IMODE(source.stat().st_mode)
         try:
             rendered = render_text(data.decode("utf-8"), values).encode("utf-8")
         except UnicodeDecodeError:
@@ -135,11 +138,11 @@ def copy_template(template: Path, target: Path, values: dict[str, str], merge: b
                 continue
             candidate = conflict_destination(destination)
             ensure_within_target(candidate, target)
-            write_atomic(candidate, rendered)
+            write_atomic(candidate, rendered, mode=mode)
             conflicts.append(candidate)
             continue
 
-        write_atomic(destination, rendered)
+        write_atomic(destination, rendered, mode=mode)
 
     return conflicts
 
@@ -175,10 +178,6 @@ def main() -> int:
 
     target.mkdir(parents=True, exist_ok=True)
     conflicts = copy_template(template, target, values, args.merge)
-
-    hooks_dir = target / ".claude" / "hooks"
-    for script in hooks_dir.glob("*.py"):
-        script.chmod(script.stat().st_mode | 0o111)
 
     if args.git_init and not (target / ".git").exists():
         run_checked(["git", "init"], target)

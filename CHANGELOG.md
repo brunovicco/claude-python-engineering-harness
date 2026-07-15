@@ -13,8 +13,12 @@
 - Made security hooks fail closed on malformed input and internal errors.
 - Closed MCP mutation-classification, production-targeting, credential, and dependency-pinning gaps.
 - Prevented bootstrap conflict overwrites, unsafe names and versions, and symlink path escapes.
+- Preserved template file permissions during atomic rendering instead of making every hook
+  executable with restrictive inherited modes.
 - Detected outer-layer imports written as `from package import layer`.
 - Constrained branch and file values passed to the parallel review workflow.
+- Avoided treating inline jq `.env` property selectors as sensitive file access while continuing to
+  block actual `.env` path arguments.
 
 ### Changed
 

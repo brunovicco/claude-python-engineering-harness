@@ -4,6 +4,7 @@ import ast
 import compileall
 import importlib.util
 import json
+import stat
 import subprocess
 import sys
 import tempfile
@@ -105,6 +106,25 @@ class BootstrapTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 bootstrap.copy_template(template, target, VALUES, merge=True)
             self.assertFalse((outside / "file.txt").exists())
+
+    def test_render_preserves_template_file_modes(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            template = root / "template"
+            target = root / "target"
+            template.mkdir()
+            target.mkdir()
+            executable = template / "executable.py"
+            regular = template / "regular.py"
+            executable.write_text("print('ok')\n", encoding="utf-8")
+            regular.write_text("VALUE = 1\n", encoding="utf-8")
+            executable.chmod(0o755)
+            regular.chmod(0o644)
+
+            bootstrap.copy_template(template, target, VALUES, merge=False)
+
+            self.assertEqual(stat.S_IMODE((target / executable.name).stat().st_mode), 0o755)
+            self.assertEqual(stat.S_IMODE((target / regular.name).stat().st_mode), 0o644)
 
     def test_complete_template_renders_token_clean_and_compiles(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -240,6 +260,30 @@ class HookTests(unittest.TestCase):
             result = run_hook("validate_bash.py", payload, Path(directory))
         self.assertEqual(result.returncode, 0)
         self.assertEqual(result.stdout, "")
+
+    def test_bash_allows_jq_environment_property_selector(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            payload = {
+                "cwd": directory,
+                "tool_name": "Bash",
+                "tool_input": {
+                    "command": "jq -r '.env // {} | keys' ~/.claude/settings.json"
+                },
+            }
+            result = run_hook("validate_bash.py", payload, Path(directory))
+        self.assertEqual(result.returncode, 0)
+        self.assertEqual(result.stdout, "")
+
+    def test_bash_blocks_environment_file_used_as_jq_input(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            payload = {
+                "cwd": directory,
+                "tool_name": "Bash",
+                "tool_input": {"command": "jq -r '.' .env"},
+            }
+            result = run_hook("validate_bash.py", payload, Path(directory))
+        decision = json.loads(result.stdout)["hookSpecificOutput"]
+        self.assertEqual(decision["permissionDecision"], "deny")
 
     def test_stop_scan_finds_secret_written_outside_edit_tools(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
