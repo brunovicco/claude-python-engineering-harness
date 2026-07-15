@@ -5,7 +5,14 @@ import re
 from pathlib import Path
 from typing import Any
 
-from _common import block_action, log_event, path_within, project_root, read_input
+from _common import (
+    block_action,
+    log_event,
+    path_within,
+    project_root,
+    read_input,
+    run_blocking_check,
+)
 
 PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
     ("private key", re.compile(r"-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----")),
@@ -29,6 +36,16 @@ def file_path(tool_input: Any) -> str | None:
     return None
 
 
+def findings_for_file(path: Path) -> list[str]:
+    """Return high-confidence secret categories found in a regular project file."""
+    if not path.is_file() or path.stat().st_size > 2_000_000:
+        return []
+    if path.name.endswith(".example") or ".example." in path.name:
+        return []
+    content = path.read_text(encoding="utf-8", errors="ignore")
+    return [name for name, pattern in PATTERNS if pattern.search(content)]
+
+
 def main() -> None:
     """Block continuation when a high-confidence secret appears in a changed file."""
     payload = read_input()
@@ -39,26 +56,18 @@ def main() -> None:
 
     path = Path(raw)
     if not path.is_absolute():
-        path = root/path
-    if not path_within(path, root) or not path.is_file() or path.stat().st_size > 2_000_000:
+        path = root / path
+    if not path_within(path, root):
         return
-    if path.name.endswith(".example") or ".example." in path.name:
-        return
-
-    try:
-        content = path.read_text(encoding="utf-8", errors="ignore")
-    except OSError:
-        return
-
-    findings = [name for name, pattern in PATTERNS if pattern.search(content)]
+    findings = findings_for_file(path)
     if findings:
         log_event(payload, "scan_secrets", "secret-in-file", "block")
         block_action(
-            f"Potential secret detected in {path.relative_to(root)}: "
+            f"Potential secret detected in {path.relative_to(root).as_posix()!r}: "
             f"{', '.join(findings)}. Remove it and rotate it if real. "
             "Use a secret manager or environment-variable placeholder."
         )
 
 
 if __name__ == "__main__":
-    main()
+    run_blocking_check(main, check_name="Secret scan")

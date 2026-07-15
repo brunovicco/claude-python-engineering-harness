@@ -6,7 +6,11 @@ from typing import Any, Self
 
 import pytest
 
-from {{PACKAGE_NAME}}.adapters.tracing import NullLlmCallObserver, build_llm_call_observer
+from {{PACKAGE_NAME}}.adapters.tracing import (
+    NullLlmCallObserver,
+    build_llm_call_observer,
+    sanitize_metadata,
+)
 
 
 class _FakeGeneration:
@@ -134,3 +138,30 @@ def test_observer_forwards_content_when_explicitly_enabled(
     recorded = client.generation.updates[0]
     assert recorded["input"] is None  # no prompt was supplied for this call
     assert recorded["usage_details"] is None
+
+
+def test_sanitize_metadata_drops_content_and_unbounded_values() -> None:
+    """Only approved bounded metadata reaches the tracing backend."""
+    sanitized = sanitize_metadata(
+        {
+            "provider": "anthropic",
+            "outcome": "success",
+            "prompt": "must not leave the process",
+            "custom": {"nested": "object"},
+            "feature": "x" * 257,
+        }
+    )
+
+    assert sanitized == {"provider": "anthropic", "outcome": "success"}
+
+
+def test_observer_does_not_propagate_backend_failure(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Tracing outages never fail a completed business operation."""
+    monkeypatch.setenv("LANGFUSE_PUBLIC_KEY", "pk-lf-test")
+    monkeypatch.setenv("LANGFUSE_SECRET_KEY", "sk-lf-test")
+    client = _FakeLangfuseClient()
+    client.start_as_current_observation = lambda **_: (_ for _ in ()).throw(RuntimeError("down"))  # type: ignore[method-assign]
+    _install_fake_langfuse(monkeypatch, client)
+
+    observer = build_llm_call_observer()
+    observer.record(name="classify-ticket", model="claude-sonnet", latency_seconds=0.1)

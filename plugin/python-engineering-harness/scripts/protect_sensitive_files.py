@@ -5,7 +5,7 @@ import fnmatch
 from pathlib import Path
 from typing import Any
 
-from _common import deny_tool, log_event, project_root, read_input
+from _common import deny_tool, log_event, project_root, read_input, run_pre_tool_hook
 
 DENIED_PATTERNS = (
     ".env",
@@ -88,4 +88,4 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    run_pre_tool_hook(main)

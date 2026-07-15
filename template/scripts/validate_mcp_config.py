@@ -15,8 +15,11 @@ SENSITIVE_NAME = re.compile(
     r"(?:authorization|cookie|credential|password|passwd|private[_-]?key|secret|token|api[_-]?key)",
     re.IGNORECASE,
 )
-ENV_REFERENCE = re.compile(r"\$\{[A-Z_][A-Z0-9_]*(?::-.*)?\}")
 FULL_ENV_REFERENCE = re.compile(r"^\$\{[A-Z_][A-Z0-9_]*\}$")
+SENSITIVE_TEMPLATE = re.compile(
+    r"^(?:(?:Bearer|Basic)\s+)?\$\{[A-Z_][A-Z0-9_]*\}$",
+    re.IGNORECASE,
+)
 HIGH_CONFIDENCE_SECRET = re.compile(
     r"(?:"
     r"-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----|"
@@ -28,6 +31,10 @@ HIGH_CONFIDENCE_SECRET = re.compile(
     r")"
 )
 SHELL_COMMANDS = {"bash", "cmd", "fish", "powershell", "pwsh", "sh", "zsh"}
+PACKAGE_RUNNERS = {"npx", "uvx"}
+EXACT_PYTHON_PACKAGE = re.compile(
+    r"^[A-Za-z0-9_.-]+==[0-9]+\.[0-9]+\.[0-9]+(?:[-+][0-9A-Za-z.-]+)?$"
+)
 
 
 def error(path: Path, server: str, message: str) -> str:
@@ -62,6 +69,8 @@ def validate_remote(path: Path, name: str, config: dict[str, Any], server_type: 
         localhost = parsed.hostname in {"127.0.0.1", "::1", "localhost"}
         if parsed.scheme != expected and not localhost:
             errors.append(error(path, name, f"remote URL must use {expected} outside localhost"))
+        if parsed.username is not None or parsed.password is not None:
+            errors.append(error(path, name, "remote URL must not contain user information"))
 
     headers = config.get("headers", {})
     if not isinstance(headers, dict):
@@ -75,7 +84,9 @@ def validate_remote(path: Path, name: str, config: dict[str, Any], server_type: 
                 errors.append(
                     error(path, name, f"header {header_name!r} contains a probable secret")
                 )
-            if SENSITIVE_NAME.search(header_name) and not ENV_REFERENCE.search(header_value):
+            if SENSITIVE_NAME.search(header_name) and not SENSITIVE_TEMPLATE.fullmatch(
+                header_value
+            ):
                 errors.append(
                     error(
                         path,
@@ -83,6 +94,49 @@ def validate_remote(path: Path, name: str, config: dict[str, Any], server_type: 
                         f"sensitive header {header_name!r} must reference an environment variable",
                     )
                 )
+    return errors
+
+
+def validate_stdio_args(path: Path, name: str, command: str, args: list[str]) -> list[str]:
+    """Reject literal credentials and unpinned package-runner dependencies."""
+    errors: list[str] = []
+    for index, value in enumerate(args):
+        if HIGH_CONFIDENCE_SECRET.search(value):
+            errors.append(error(path, name, f"argument {index} contains a probable secret"))
+        flag, separator, inline_value = value.partition("=")
+        if SENSITIVE_NAME.search(flag.lstrip("-")) and flag.startswith("-"):
+            candidate = (
+                inline_value if separator else (args[index + 1] if index + 1 < len(args) else "")
+            )
+            if not FULL_ENV_REFERENCE.fullmatch(candidate):
+                errors.append(
+                    error(
+                        path,
+                        name,
+                        f"sensitive argument {value!r} must use an environment reference",
+                    )
+                )
+
+    executable = Path(command).name.lower()
+    if executable not in PACKAGE_RUNNERS:
+        return errors
+    if any("@latest" in value or value.endswith(":latest") for value in args):
+        errors.append(error(path, name, f"{executable} dependencies must not use latest tags"))
+    if executable == "uvx" and "--from" in args:
+        index = args.index("--from")
+        package = args[index + 1] if index + 1 < len(args) else ""
+        if not EXACT_PYTHON_PACKAGE.fullmatch(package):
+            errors.append(error(path, name, "uvx --from dependency must use an exact == version"))
+    elif executable == "uvx":
+        package = next((value for value in args if not value.startswith("-")), "")
+        if not EXACT_PYTHON_PACKAGE.fullmatch(package):
+            errors.append(error(path, name, "uvx package must use an exact == version"))
+    if executable == "npx":
+        package = next((value for value in args if not value.startswith("-")), "")
+        version_separator = package.rfind("@")
+        version = package[version_separator + 1 :] if version_separator > 0 else ""
+        if not re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+(?:[-+][0-9A-Za-z.-]+)?", version):
+            errors.append(error(path, name, "npx package must include an exact @version"))
     return errors
 
 
@@ -98,6 +152,8 @@ def validate_stdio(path: Path, name: str, config: dict[str, Any]) -> list[str]:
 
     if not isinstance(args, list) or not all(isinstance(value, str) for value in args):
         errors.append(error(path, name, "args must be an array of strings"))
+    elif isinstance(command, str):
+        errors.extend(validate_stdio_args(path, name, command, args))
 
     env = config.get("env", {})
     if not isinstance(env, dict):
@@ -170,6 +226,9 @@ def validate_file(path: Path) -> list[str]:
                     "server name must use letters, numbers, underscores, or hyphens",
                 )
             )
+            continue
+        if name == "workspace":
+            errors.append(error(path, name, "server name 'workspace' is reserved by Claude Code"))
             continue
         errors.extend(validate_server(path, name, config))
     return errors

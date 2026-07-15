@@ -2,9 +2,12 @@
 """Render the Claude Code Python harness into a target repository."""
 
 import argparse
+import keyword
+import os
 import shutil
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 TOKENS = {
@@ -13,6 +16,8 @@ TOKENS = {
     "{{PYTHON_VERSION}}": "python_version",
     "{{RUFF_TARGET_VERSION}}": "ruff_target_version",
 }
+
+SUPPORTED_PYTHON_MINORS = {12, 13, 14}
 
 
 def parse_args() -> argparse.Namespace:
@@ -34,15 +39,31 @@ def normalize_python_version(value: str) -> tuple[str, str]:
     if len(parts) != 2 or not all(part.isdigit() for part in parts):
         raise ValueError(f"Invalid Python version: {value!r}; expected MAJOR.MINOR")
     major, minor = (int(part) for part in parts)
-    if major != 3 or minor < 12:
-        raise ValueError("This harness supports Python 3.12 or newer.")
-    return value, f"py{major}{minor}"
+    if major != 3 or minor not in SUPPORTED_PYTHON_MINORS:
+        supported = ", ".join(f"3.{item}" for item in sorted(SUPPORTED_PYTHON_MINORS))
+        raise ValueError(f"Unsupported Python version {value!r}; choose one of: {supported}")
+    normalized = f"{major}.{minor}"
+    if value != normalized:
+        raise ValueError(f"Invalid Python version: {value!r}; use canonical form {normalized!r}")
+    return normalized, f"py{major}{minor}"
 
 
 def validate_package_name(value: str) -> None:
     """Validate a Python package identifier."""
-    if not value.isidentifier():
+    if not value.isidentifier() or keyword.iskeyword(value):
         raise ValueError(f"Invalid Python package name: {value!r}")
+
+
+def validate_project_name(value: str) -> None:
+    """Validate a project/distribution name before substituting it into files."""
+    if (
+        not value
+        or value[0] in ".-"
+        or not all(character.isalnum() or character in ".-_" for character in value)
+    ):
+        raise ValueError(
+            f"Invalid project name: {value!r}; use letters, numbers, dots, hyphens, or underscores"
+        )
 
 
 def render_text(content: str, values: dict[str, str]) -> str:
@@ -58,12 +79,46 @@ def destination_for(relative: Path, values: dict[str, str]) -> Path:
     return Path(*parts)
 
 
+def ensure_within_target(path: Path, target: Path) -> None:
+    """Reject destinations that escape the target through traversal or symlinks."""
+    try:
+        path.resolve().relative_to(target.resolve())
+    except ValueError as exc:
+        raise ValueError(f"Rendered destination escapes target directory: {path}") from exc
+
+
+def write_atomic(path: Path, data: bytes) -> None:
+    """Atomically replace a destination after writing it in the same directory."""
+    temporary_name: str | None = None
+    try:
+        with tempfile.NamedTemporaryFile(dir=path.parent, delete=False) as temporary:
+            temporary.write(data)
+            temporary.flush()
+            os.fsync(temporary.fileno())
+            temporary_name = temporary.name
+        os.replace(temporary_name, path)
+    finally:
+        if temporary_name is not None:
+            Path(temporary_name).unlink(missing_ok=True)
+
+
+def conflict_destination(destination: Path) -> Path:
+    """Return a conflict path that never overwrites an earlier suggestion."""
+    candidate = destination.with_name(destination.name + ".harness-new")
+    counter = 2
+    while candidate.exists() or candidate.is_symlink():
+        candidate = destination.with_name(f"{destination.name}.harness-new.{counter}")
+        counter += 1
+    return candidate
+
+
 def copy_template(template: Path, target: Path, values: dict[str, str], merge: bool) -> list[Path]:
     """Copy and render the template, preserving conflicts in merge mode."""
     conflicts: list[Path] = []
     for source in sorted(template.rglob("*")):
         relative = source.relative_to(template)
         destination = target / destination_for(relative, values)
+        ensure_within_target(destination, target)
         if source.is_dir():
             destination.mkdir(parents=True, exist_ok=True)
             continue
@@ -75,15 +130,16 @@ def copy_template(template: Path, target: Path, values: dict[str, str], merge: b
         except UnicodeDecodeError:
             rendered = data
 
-        if destination.exists() and merge:
-            if destination.read_bytes() == rendered:
+        if (destination.exists() or destination.is_symlink()) and merge:
+            if not destination.is_symlink() and destination.read_bytes() == rendered:
                 continue
-            candidate = destination.with_name(destination.name + ".harness-new")
-            candidate.write_bytes(rendered)
+            candidate = conflict_destination(destination)
+            ensure_within_target(candidate, target)
+            write_atomic(candidate, rendered)
             conflicts.append(candidate)
             continue
 
-        destination.write_bytes(rendered)
+        write_atomic(destination, rendered)
 
     return conflicts
 
@@ -97,6 +153,7 @@ def run_checked(command: list[str], cwd: Path) -> None:
 def main() -> int:
     """Render the harness and run optional initialization steps."""
     args = parse_args()
+    validate_project_name(args.name)
     validate_package_name(args.package)
     python_version, ruff_target_version = normalize_python_version(args.python_version)
 

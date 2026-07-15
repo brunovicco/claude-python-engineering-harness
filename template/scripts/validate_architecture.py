@@ -53,7 +53,10 @@ class Violation:
 
 def layer_for(path: Path) -> str | None:
     """Return the architectural layer represented in a source path."""
-    return next((part for part in path.parts if part in LAYERS), None)
+    if len(path.parts) < 2:
+        return None
+    layer = path.parts[1]
+    return layer if layer in LAYERS else None
 
 
 def imported_modules(tree: ast.AST, current_module: tuple[str, ...]) -> list[tuple[int, str]]:
@@ -74,7 +77,10 @@ def imported_modules(tree: ast.AST, current_module: tuple[str, ...]) -> list[tup
             target_parts = current_package[:retained] + module_parts
         else:
             target_parts = module_parts
-        imports.append((node.lineno, ".".join(part for part in target_parts if part)))
+        base = ".".join(part for part in target_parts if part)
+        for alias in node.names:
+            imported = ".".join(part for part in (base, alias.name) if part)
+            imports.append((node.lineno, imported))
 
     return imports
 

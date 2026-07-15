@@ -2,7 +2,7 @@
   "hooks": {
     "PreToolUse": [
       {
-        "matcher": "Read|Edit|Write|NotebookEdit",
+        "matcher": "Read|Grep|Glob|Edit|Write|NotebookEdit",
         "hooks": [
           {
             "type": "command",
@@ -43,7 +43,7 @@
     ],
     "PostToolUse": [
       {
-        "matcher": "Edit|Write",
+        "matcher": "Edit|Write|NotebookEdit",
         "hooks": [
           {
             "type": "command",
@@ -60,6 +60,20 @@
               "${CLAUDE_PLUGIN_ROOT}/scripts/format_python.py"
             ],
             "timeout": 60
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/scripts/scan_worktree.py"
+            ],
+            "timeout": 30
           }
         ]
       }

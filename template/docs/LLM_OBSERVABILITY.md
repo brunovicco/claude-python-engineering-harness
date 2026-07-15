@@ -15,8 +15,9 @@ not set, so application code never needs to branch on whether tracing is enabled
 
 - No prompt or completion content is sent to Langfuse unless `LANGFUSE_CAPTURE_CONTENT=true` is
   set explicitly.
-- Only metadata is recorded by default: call name, model, latency, token counts, and any
-  non-content metadata the caller supplies.
+- Only metadata is recorded by default: call name, model, latency, token counts, and the bounded
+  allowlisted fields enforced by `sanitize_metadata()`. Unknown, nested, content-bearing, and
+  oversized metadata is discarded.
 
 ## Enabling tracing
 
@@ -42,8 +43,8 @@ not set, so application code never needs to branch on whether tracing is enabled
 - Access control for who can read traces in the Langfuse project.
 - Non-production data used for any test or staging traces.
 - Confirmation that no MCP tool output, secrets, or credentials can reach `prompt`/`completion`
-  fields (`guard_mcp.py` blocks outbound MCP calls that carry literal secrets, but the tracing
-  adapter itself has no equivalent filter - the caller is responsible for what it passes in).
+  fields. The tracing adapter allowlists metadata, but when content capture is enabled the caller
+  remains responsible for redacting the explicit `prompt` and `completion` values.
 
 ## Configuration reference
 

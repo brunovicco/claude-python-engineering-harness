@@ -3,7 +3,7 @@
 
 import re
 
-from _common import deny_tool, log_event, read_input
+from _common import deny_tool, log_event, read_input, run_pre_tool_hook
 
 RULES: tuple[tuple[re.Pattern[str], str], ...] = (
     (re.compile(r"(^|[;&|]\s*)sudo\b", re.IGNORECASE), "sudo is not allowed from Claude Code"),
@@ -51,13 +51,16 @@ RULES: tuple[tuple[re.Pattern[str], str], ...] = (
         re.compile(r"\b(?:mkfs|fdisk|dd\s+if=)\b", re.IGNORECASE),
         "low-level disk operations are blocked",
     ),
-    (
-        re.compile(
-            r"\b(?:cat|sed|awk|grep|head|tail)\b[^\n]*(?:\.env|id_rsa|id_ed25519|credentials|secrets?)",
-            re.IGNORECASE,
-        ),
-        "commands that print sensitive files are blocked",
-    ),
+)
+
+SENSITIVE_PATH = re.compile(
+    r"(?:^|[/\\\s'\"=])(?:"
+    r"\.env(?!\.example)(?:\.[A-Za-z0-9_-]+)?|"
+    r"id_(?:rsa|ed25519)|"
+    r"terraform\.tfstate(?:\.[A-Za-z0-9_-]+)?|"
+    r"(?:secrets?|credentials?)(?:/|\\)"
+    r")",
+    re.IGNORECASE,
 )
 
 
@@ -69,6 +72,14 @@ def main() -> None:
     if not isinstance(command, str):
         return
 
+    if SENSITIVE_PATH.search(command):
+        log_event(payload, "validate_bash", "sensitive-file", "deny")
+        deny_tool(
+            "Blocked command: shell commands may not reference sensitive files. "
+            "Use an example file or environment-variable names only."
+        )
+        return
+
     for pattern, reason in RULES:
         if pattern.search(command):
             log_event(payload, "validate_bash", "destructive-command", "deny")
@@ -77,4 +88,4 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    run_pre_tool_hook(main)

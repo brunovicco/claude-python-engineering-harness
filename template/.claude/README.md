@@ -7,7 +7,8 @@
 - `rules/`: modular standards, with path-scoped loading where useful.
 - `skills/`: repeatable procedures invoked with `/name`.
 - `agents/`: specialized workers with constrained tools and prompts.
-- `hooks/`: deterministic safety and automation scripts.
+- `hooks/`: deterministic safety and automation scripts, including a changed-file secret scan
+  before Claude stops.
 - `workflows/`: scripted multi-agent orchestration for larger tasks.
 - `output-styles/`: response and reporting conventions.
 - `settings.json`: permissions, hooks, environment, and shared defaults.

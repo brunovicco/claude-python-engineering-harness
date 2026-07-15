@@ -1,9 +1,6 @@
 # Official sources
 
-*[Português](SOURCES.pt-BR.md)*
-
-Reviewed on 2026-07-08.
-Re-verified on 2026-07-11
+Last verified: 2026-07-15.
 
 ## Claude Code
 

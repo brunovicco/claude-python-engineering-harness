@@ -1,20 +1,42 @@
-"""Optional Langfuse tracing adapter for LLM calls.
+"""Optional, failure-isolated Langfuse tracing for LLM calls.
 
-Opt-in by construction: ``langfuse`` is the ``tracing`` optional dependency
-group and :func:`build_llm_call_observer` returns a no-op observer whenever
-the package is not installed or ``LANGFUSE_PUBLIC_KEY``/``LANGFUSE_SECRET_KEY``
-are not set, so callers never need to branch on whether tracing is enabled.
-
-Prompt and completion content is forwarded to Langfuse only when
-``LANGFUSE_CAPTURE_CONTENT`` is explicitly set to ``true`` after the
-data-handling review described in ``docs/LLM_OBSERVABILITY.md``. By default
-only metadata (model, token counts, latency) is recorded, consistent with the
-"do not log prompts or model responses" rule in
-``.claude/rules/security-privacy.md``.
+Tracing is disabled without credentials. Content capture also requires the explicit opt-in
+documented in ``docs/LLM_OBSERVABILITY.md``; otherwise only allowlisted metadata is sent.
 """
 
 import os
+from collections.abc import Mapping
 from typing import Any, Protocol
+
+type TraceScalar = str | int | float | bool | None
+ALLOWED_METADATA_KEYS = frozenset(
+    {
+        "correlation_id",
+        "environment",
+        "feature",
+        "operation",
+        "outcome",
+        "provider",
+        "retry_count",
+        "service",
+        "trace_id",
+    }
+)
+MAX_METADATA_STRING_LENGTH = 256
+
+
+def sanitize_metadata(metadata: Mapping[str, Any] | None) -> dict[str, TraceScalar]:
+    """Keep only bounded, explicitly approved non-content tracing metadata."""
+    sanitized: dict[str, TraceScalar] = {}
+    for key, value in (metadata or {}).items():
+        if key not in ALLOWED_METADATA_KEYS:
+            continue
+        if not isinstance(value, (str, int, float, bool)) and value is not None:
+            continue
+        if isinstance(value, str) and len(value) > MAX_METADATA_STRING_LENGTH:
+            continue
+        sanitized[key] = value
+    return sanitized
 
 
 class LlmCallObserver(Protocol):
@@ -30,7 +52,7 @@ class LlmCallObserver(Protocol):
         output_tokens: int | None = None,
         prompt: str | None = None,
         completion: str | None = None,
-        metadata: dict[str, Any] | None = None,
+        metadata: Mapping[str, Any] | None = None,
     ) -> None:
         """Record one completed LLM call."""
         ...
@@ -61,7 +83,7 @@ class _LangfuseLlmCallObserver:
         output_tokens: int | None = None,
         prompt: str | None = None,
         completion: str | None = None,
-        metadata: dict[str, Any] | None = None,
+        metadata: Mapping[str, Any] | None = None,
     ) -> None:
         """Record one completed LLM call as a Langfuse generation."""
         usage_details: dict[str, int] = {}
@@ -70,15 +92,21 @@ class _LangfuseLlmCallObserver:
         if output_tokens is not None:
             usage_details["output"] = output_tokens
 
-        with self._client.start_as_current_observation(
-            as_type="generation", name=name, model=model
-        ) as generation:
-            generation.update(
-                input=prompt if self._capture_content else None,
-                output=completion if self._capture_content else None,
-                usage_details=usage_details or None,
-                metadata={"latency_seconds": latency_seconds, **(metadata or {})},
-            )
+        safe_metadata = sanitize_metadata(metadata)
+        safe_metadata["latency_seconds"] = latency_seconds
+        try:
+            with self._client.start_as_current_observation(
+                as_type="generation", name=name, model=model
+            ) as generation:
+                generation.update(
+                    input=prompt if self._capture_content else None,
+                    output=completion if self._capture_content else None,
+                    usage_details=usage_details or None,
+                    metadata=safe_metadata,
+                )
+        except Exception:
+            # Telemetry must not turn a completed model call into a business failure.
+            return
 
 
 def build_llm_call_observer() -> LlmCallObserver:

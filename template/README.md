@@ -15,6 +15,8 @@ uv run pytest
 uv lock --check
 uv run ruff check .
 uv run ruff format --check .
+uv run python scripts/validate_architecture.py
+uv run python scripts/validate_mcp_config.py
 uv run mypy src tests
 uv run pytest
 uv run bandit -c pyproject.toml -r src

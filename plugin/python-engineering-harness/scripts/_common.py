@@ -4,18 +4,21 @@ import json
 import os
 import subprocess
 import sys
+from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 
 def read_input() -> dict[str, Any]:
-    """Read the hook JSON payload from stdin."""
+    """Read and validate the hook JSON payload from stdin."""
     try:
         payload = json.load(sys.stdin)
-    except (json.JSONDecodeError, OSError):
-        return {}
-    return payload if isinstance(payload, dict) else {}
+    except (json.JSONDecodeError, OSError) as exc:
+        raise ValueError("Claude Code supplied invalid hook JSON") from exc
+    if not isinstance(payload, dict):
+        raise ValueError("Claude Code hook payload must be a JSON object")
+    return payload
 
 
 def project_root(payload: dict[str, Any]) -> Path:
@@ -65,8 +68,31 @@ def ask_tool(reason: str) -> None:
 
 
 def block_action(reason: str) -> None:
-    """Block a PostToolUse action with a visible reason."""
+    """Block the current agent loop with a visible reason."""
     print(json.dumps({"decision": "block", "reason": reason}))
+
+
+def run_pre_tool_hook(callback: Callable[[], None]) -> None:
+    """Run a security hook and fail closed on malformed input or internal errors."""
+    try:
+        callback()
+    except Exception as exc:
+        print(
+            f"Security hook failed closed ({type(exc).__name__}). Review hook diagnostics.",
+            file=sys.stderr,
+        )
+        raise SystemExit(2) from exc
+
+
+def run_blocking_check(callback: Callable[[], None], *, check_name: str) -> None:
+    """Run a post-action check and stop the agent loop when the check itself fails."""
+    try:
+        callback()
+    except Exception as exc:
+        block_action(
+            f"{check_name} could not complete ({type(exc).__name__}). "
+            "Stop and inspect the hook before continuing."
+        )
 
 
 def log_event(payload: dict[str, Any], hook: str, category: str, decision: str) -> None:
@@ -85,7 +111,7 @@ def log_event(payload: dict[str, Any], hook: str, category: str, decision: str) 
         "decision": decision,
         "tool_name": tool_name if isinstance(tool_name, str) else None,
     }
-    log_path = project_root(payload)/".claude"/"logs"/"hooks-audit.jsonl"
+    log_path = project_root(payload) / ".claude" / "logs" / "hooks-audit.jsonl"
     try:
         log_path.parent.mkdir(parents=True, exist_ok=True)
         with log_path.open("a", encoding="utf-8") as handle:

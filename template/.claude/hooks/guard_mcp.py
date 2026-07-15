@@ -5,7 +5,7 @@ import re
 from collections.abc import Iterator, Mapping, Sequence
 from typing import Any
 
-from _common import ask_tool, deny_tool, log_event, read_input
+from _common import ask_tool, deny_tool, log_event, read_input, run_pre_tool_hook
 
 MUTATING_TERMS = {
     "add",
@@ -22,26 +22,34 @@ MUTATING_TERMS = {
     "enable",
     "execute",
     "forward",
+    "grant",
+    "import",
     "invite",
     "merge",
     "modify",
     "move",
+    "patch",
     "pay",
     "post",
     "publish",
+    "put",
     "push",
     "remove",
     "rename",
     "reply",
     "restart",
     "restore",
+    "revoke",
     "run",
     "send",
     "set",
+    "start",
+    "stop",
     "submit",
     "transfer",
     "trigger",
     "update",
+    "upsert",
     "upload",
     "write",
 }
@@ -95,6 +103,7 @@ def iter_values(value: Any, path: tuple[str, ...] = ()) -> Iterator[tuple[tuple[
 def tool_terms(tool_name: str) -> set[str]:
     """Return normalized terms from an MCP tool name."""
     leaf = tool_name.rsplit("__", maxsplit=1)[-1]
+    leaf = re.sub(r"(?<=[a-z0-9])(?=[A-Z])", "_", leaf)
     return {term for term in re.split(r"[^a-z0-9]+", leaf.lower()) if term}
 
 
@@ -117,7 +126,20 @@ def targets_production(tool_input: Mapping[str, Any]) -> bool:
         if not isinstance(value, str):
             continue
         key = path[-1].lower() if path else ""
-        production_keys = {"env", "environment", "host", "instance", "stage", "target", "url"}
+        production_keys = {
+            "account",
+            "cluster",
+            "database",
+            "env",
+            "environment",
+            "host",
+            "instance",
+            "namespace",
+            "project",
+            "stage",
+            "target",
+            "url",
+        }
         if key in production_keys and re.search(
             r"(?:^|[-_.:/])prod(?:uction)?(?:$|[-_.:/])",
             value,
@@ -155,20 +177,22 @@ def main() -> None:
 
     if terms & MUTATING_TERMS:
         production = targets_production(tool_input)
-        reason = "MCP tool can change external state and requires explicit human confirmation."
         if production:
-            reason = (
-                "MCP tool appears to mutate a production target; "
-                "confirm outside the standard workflow."
+            log_event(payload, "guard_mcp", "mcp-mutation-production", "deny")
+            deny_tool(
+                "Blocked MCP mutation against a production target. "
+                "Use the approved production change workflow outside this harness."
             )
+            return
+        reason = "MCP tool can change external state and requires explicit human confirmation."
         log_event(
             payload,
             "guard_mcp",
-            "mcp-mutation-production" if production else "mcp-mutation",
+            "mcp-mutation",
             "ask",
         )
         ask_tool(reason)
 
 
 if __name__ == "__main__":
-    main()
+    run_pre_tool_hook(main)

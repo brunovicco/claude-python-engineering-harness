@@ -1,6 +1,6 @@
 # Python Engineering Harness plugin
 
-Reusable Claude Code plugin with Python engineering agents, skills, safety hooks, MCP governance, and an engineering output style.
+Reusable Claude Code plugin with Python agents, skills, safety hooks, and MCP governance.
 
 Test locally:
 
@@ -14,12 +14,17 @@ Validate:
 claude plugin validate ./plugin/python-engineering-harness
 ```
 
-The plugin is disabled by default when installed from a marketplace because hooks can block actions and format changed Python files. Review the scripts before enabling.
+The plugin is disabled by default when installed from a marketplace because hooks can block actions,
+format changed Python files, and scan the changed worktree before Claude stops. Review the scripts
+before enabling.
 
-Project-specific architecture, permissions, and policy still belong in each repository's `CLAUDE.md`, `AGENTS.md`, `.claude/rules/`, and `.claude/settings.json`.
+Project-specific architecture, permissions, and policy remain in each repository.
 
 ## MCP behavior
 
-The plugin provides the `mcp-integrator` agent, `/configure-mcp`, `/review-mcp`, and a `PreToolUse` guard for MCP calls. The guard blocks likely credential exfiltration and escalates state-changing MCP tools for explicit confirmation.
+The plugin provides the `mcp-integrator` agent, `/configure-mcp`, `/review-mcp`, and a `PreToolUse`
+guard for MCP calls. The guard blocks likely credential exfiltration, escalates state-changing MCP
+tools for explicit confirmation, and denies mutations that target production.
 
-The plugin intentionally does not bundle a generic MCP server. Project integrations belong in a reviewed `.mcp.json`, while organization-wide catalogs belong in managed MCP policy. This avoids adding external trust and data-egress paths to every repository by default.
+The plugin does not bundle a generic MCP server. Put reviewed project integrations in `.mcp.json`
+and organization-wide catalogs in managed MCP policy.

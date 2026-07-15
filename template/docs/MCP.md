@@ -35,7 +35,8 @@ Project scope is appropriate only when every contributor is expected to use the 
 
 - Read-only tools may be approved only after the server, endpoint, requested scopes, and data returned are understood.
 - Create, update, delete, deploy, merge, push, send, approve, execute, or payment-like tools require explicit human confirmation for each material action.
-- Production mutations must not be performed through the standard development harness.
+- Production mutations are denied by `guard_mcp.py` and must not be performed through the standard
+  development harness.
 - Database access should use a read-only identity by default and expose views that minimize personal or confidential data.
 - Separate read and write integrations when the provider permits it.
 

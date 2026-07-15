@@ -1,13 +1,10 @@
 # syntax=docker/dockerfile:1
 #
-# Multi-stage build: dependencies are resolved and installed in `builder` from the
-# committed uv.lock, then only the resulting virtualenv and source are copied into a
-# slim runtime image. Keeps the runtime image free of uv, build tools, and the wheel
-# cache. See docs.astral.sh/uv/guides/integration/docker/ (SOURCES.md).
+# Build from the committed lock file and keep uv and build tools out of the runtime image.
 
 FROM python:{{PYTHON_VERSION}}-slim AS builder
 
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+COPY --from=ghcr.io/astral-sh/uv:0.11.28 /uv /uvx /bin/
 
 ENV UV_COMPILE_BYTECODE=1 \
     UV_LINK_MODE=copy \
@@ -15,8 +12,7 @@ ENV UV_COMPILE_BYTECODE=1 \
 
 WORKDIR /app
 
-# Install dependencies before copying source so dependency layers stay cached across
-# source-only changes.
+# Cache dependencies independently from source changes.
 RUN --mount=type=cache,target=/root/.cache/uv \
     --mount=type=bind,source=uv.lock,target=uv.lock \
     --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
@@ -41,9 +37,7 @@ ENV PATH="/app/.venv/bin:$PATH" \
 
 USER app
 
-# Placeholder process command: this harness is framework-agnostic and ships no
-# `__main__` or ASGI app by design (see docs/ARCHITECTURE.md). Replace with the
-# project's real entrypoint, e.g.:
+# Replace this framework-neutral placeholder with the project's entrypoint, for example:
 #   CMD ["uvicorn", "{{PACKAGE_NAME}}.entrypoints.http:app", "--host", "0.0.0.0", "--port", "8000"]
 #   CMD ["python", "-m", "{{PACKAGE_NAME}}"]
 CMD ["python", "-c", "import {{PACKAGE_NAME}}; print({{PACKAGE_NAME}}.__doc__)"]
