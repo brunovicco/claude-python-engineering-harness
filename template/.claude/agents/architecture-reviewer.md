@@ -1,6 +1,6 @@
 ---
 name: architecture-reviewer
-description: Reviews a Python change for Clean Architecture, SOLID, coupling, domain integrity, and maintainability. Use after implementation or before a major design decision.
+description: Reviews a Python change for configured dependency boundaries, coupling, cohesion, compatibility, and maintainability. Use after implementation or before a major design decision.
 tools: Read, Grep, Glob, Bash
 model: inherit
 effort: high

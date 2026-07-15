@@ -20,6 +20,10 @@ before enabling.
 
 Project-specific architecture, permissions, and policy remain in each repository.
 
+The quality-gate skill and verifier first use a project's `scripts/quality_gate.py`, then commands
+declared in `AGENTS.md`. Their `src`/`tests` commands are an explicitly labelled final fallback, so
+the plugin also works with package workspaces and nonstandard layouts.
+
 ## MCP behavior
 
 The plugin provides the `mcp-integrator` agent, `/configure-mcp`, `/review-mcp`, and a `PreToolUse`

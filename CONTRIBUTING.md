@@ -26,15 +26,12 @@ python3 bootstrap.py \
   --lock
 cd /tmp/smoke-test
 uv sync --frozen --all-groups
-uv run ruff check .
-uv run ruff format --check .
-uv run python scripts/validate_architecture.py
-uv run python scripts/validate_mcp_config.py
-uv run mypy src tests
-uv run pytest
-uv run bandit -c pyproject.toml -r src
-uv run pip-audit
+uv run python scripts/quality_gate.py
 ```
+
+Do not use `from __future__ import annotations` in harness or generated Python. Supported Python
+versions already provide the required annotation syntax; quote an individual forward reference
+only when evaluation order requires it.
 
 ## Source ownership
 

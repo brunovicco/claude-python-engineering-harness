@@ -13,7 +13,7 @@ Follow CLAUDE.md, AGENTS.md, path-scoped rules, and existing architecture. Keep 
 
 Requirements:
 
-- Preserve Clean Architecture dependency direction.
+- Preserve the project's configured dependency direction and package boundaries.
 - Add complete typing and Google-style public docstrings.
 - Validate external data at boundaries; keep domain objects framework-independent.
 - Add regression and behavior tests.

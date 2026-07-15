@@ -16,7 +16,9 @@ Complete this document before processing personal or regulated data.
 - Encryption at rest:
 - Masking/tokenization:
 - Non-production data strategy:
-- Logging and tracing restrictions: see `docs/LLM_OBSERVABILITY.md` for the Langfuse opt-in policy; record here whether this project has enabled `LANGFUSE_CAPTURE_CONTENT` and the approval date.
+- Logging and tracing restrictions: document any enabled backend, content-capture approval,
+  redaction, retention, and access policy. Add and follow a backend-specific policy before enabling
+  content-bearing tracing.
 - Data-subject deletion/anonymization:
 - External processors:
 - Incident-response owner:

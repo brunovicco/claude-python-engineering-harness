@@ -4,7 +4,8 @@ Reusable scaffold and Claude Code plugin for consistent Python engineering workf
 
 It provides:
 
-- a project template with Python tooling, architecture rules, hooks, agents, skills, and CI;
+- explicit `service`, `library`, and `workspace` profiles without making the default a monorepo;
+- a project-owned quality runner shared by CI, documentation, skills, and agents;
 - an optional plugin for sharing generic agents, skills, and safety hooks;
 - opt-in MCP governance and LLM observability;
 - deterministic quality gates that complement model-based review.
@@ -23,6 +24,10 @@ python3 bootstrap.py \
   --lock
 ```
 
+`service` is the compatibility-preserving default. Select `--profile library` for a framework-
+neutral package or `--profile workspace` for a virtual uv root with no artificial package or
+runtime container.
+
 Apply the harness to an existing repository without replacing existing files:
 
 ```bash
@@ -34,27 +39,49 @@ python3 bootstrap.py \
 ```
 
 Conflicts are written as `.harness-new`, `.harness-new.2`, and so on for manual review.
+Previously generated, unmodified files are updated automatically using hashes from `.harness.json`;
+customized files are never silently replaced.
+
+Preview or audit a project:
+
+```bash
+python3 bootstrap.py --name payments-api --package payments_api \
+  --target ../payments-api --profile service --dry-run
+python3 bootstrap.py --target ../payments-api --check
+```
 
 Then:
 
 ```bash
 cd ../payments-api
-uv sync --frozen
+uv sync --frozen --all-groups
+uv run python scripts/quality_gate.py
 claude
 ```
 
 Useful skills include `/quality-gate`, `/review-change`, `/security-review`, `/review-mcp`, and
 `/prepare-pr`.
 
-## What the project template includes
+## Profiles
+
+- `service` keeps Pydantic, structlog, Clean Architecture, Docker, and optional Langfuse tracing.
+- `library` emits a buildable `src` package without framework, Docker, or mandatory observability.
+- `workspace` emits a virtual uv root (`package = false`) with configurable multi-root discovery,
+  no artificial root package, and no runtime Dockerfile.
+
+All profiles share security hooks, MCP policy, CI, `.harness.json`, and
+`scripts/quality_gate.py`. Architecture roots and default-deny package boundaries live under
+`[tool.engineering-harness.architecture]` in `pyproject.toml`.
+
+## What generated projects include
 
 - `CLAUDE.md` and `AGENTS.md` for persistent project instructions;
 - path-scoped rules under `.claude/rules/`;
 - focused agents and invocable skills;
 - safety, formatting, context, and changed-file scanning hooks;
-- Ruff, Mypy, Pytest, Bandit, pip-audit, and architecture checks;
-- a multi-stage Dockerfile and GitHub Actions workflow;
-- optional Langfuse metadata tracing;
+- Ruff, Mypy, Pytest, Bandit, pip-audit, and configurable architecture checks;
+- a GitHub Actions workflow that invokes the same project quality runner;
+- service-only Docker and optional Langfuse metadata tracing;
 - MCP examples, validation, and managed-policy guidance.
 
 The generated service is intentionally framework-neutral. Replace its placeholder container command
@@ -101,7 +128,7 @@ least-privilege credentials, and keep production mutations outside this harness.
 Review these first:
 
 - commands and project identity in `AGENTS.md`;
-- layer rules and `scripts/validate_architecture.py`;
+- source roots and boundaries under `[tool.engineering-harness.architecture]`;
 - permissions and sensitive paths under `.claude/`;
 - `docs/PRIVACY.md`, `docs/MCP.md`, and LLM tracing policy;
 - the real package modules, container entrypoint, and deployment-specific checks.

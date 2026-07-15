@@ -12,16 +12,10 @@ uv run pytest
 ## Quality gate
 
 ```bash
-uv lock --check
-uv run ruff check .
-uv run ruff format --check .
-uv run python scripts/validate_architecture.py
-uv run python scripts/validate_mcp_config.py
-uv run mypy src tests
-uv run pytest
-uv run bandit -c pyproject.toml -r src
-uv run pip-audit
+uv run python scripts/quality_gate.py
 ```
+
+List or select checks with `--list` and `--check NAME`.
 
 ## Container
 

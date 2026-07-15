@@ -9,12 +9,7 @@ uv sync --frozen
 ## Run checks
 
 ```bash
-uv run ruff check .
-uv run ruff format --check .
-uv run mypy src tests
-uv run pytest
-uv run bandit -c pyproject.toml -r src
-uv run pip-audit
+uv run python scripts/quality_gate.py
 ```
 
 ## Container

@@ -15,19 +15,12 @@ Keep these facts and the commands below current as the project evolves.
 ## Quality gate
 
 ```bash
-uv sync --frozen
-uv run ruff check .
-uv run ruff format --check .
-uv run python scripts/validate_architecture.py
-uv run python scripts/validate_mcp_config.py
-uv run mypy src tests
-uv run pytest
-uv run bandit -c pyproject.toml -r src
-uv run pip-audit
+uv run python scripts/quality_gate.py
 ```
 
-Use focused checks while developing and run the complete gate before completion. Report failures
-honestly and distinguish pre-existing failures from regressions.
+Use `--check typing`, `--check security`, or another name from `--list` for focused work. Run the
+complete gate before completion. Report failures honestly and distinguish pre-existing failures
+from regressions.
 
 ## Working method
 

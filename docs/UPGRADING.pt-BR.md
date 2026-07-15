@@ -2,9 +2,9 @@
 
 *[English](UPGRADING.md)*
 
-O harness consegue mesclar arquivos com segurança em um repositório existente, mas não registra
-qual versão criou esse repositório. Antes das próximas atualizações, registre a tag ou o commit de
-origem no README ou na configuração de provisionamento de cada projeto.
+O harness 0.5.0 ou posterior registra versão, perfil, Python, estado da origem, hashes e modos dos
+arquivos gerados em `.harness.json`. Projetos antigos não têm baseline; por isso, a primeira
+atualização deles continua exigindo reconciliação manual.
 
 ## Procedimento
 
@@ -16,11 +16,13 @@ origem no README ou na configuração de provisionamento de cada projeto.
      --target /caminho/para/repo-existente --merge
    ```
 
-3. Revise cada arquivo `.harness-new` gerado. Se esse nome já existir, o bootstrap usará um sufixo
+3. O bootstrap atualiza automaticamente arquivos cujo hash atual corresponde ao manifesto anterior.
+   Revise cada `.harness-new` gerado. Se esse nome já existir, o bootstrap usará um sufixo
    numerado, como `.harness-new.2`.
 4. Adote correções do harness, preserve customizações intencionais do projeto e reconcilie
    manualmente arquivos alterados nos dois lados. Apague os conflitos já resolvidos.
-5. Execute o quality gate completo do projeto e atualize o registro da versão do harness.
+5. Execute `python3 bootstrap.py --target /caminho/para/repo-existente --check` e depois o
+   `scripts/quality_gate.py` do projeto. O bootstrap atualiza a versão registrada ao renderizar.
 
 Se a versão de origem não foi registrada, compare com o harness atual e trate cada diferença como
 uma decisão manual de migração.
@@ -29,7 +31,8 @@ uma decisão manual de migração.
 
 - `.claude/hooks/` e scripts de hook do plugin carregam controles e normalmente devem ser
   atualizados.
-- `scripts/validate_architecture.py` deve preservar camadas e regras de dependência do projeto.
+- Raízes e boundaries específicos pertencem ao `pyproject.toml`; mantenha o validator genérico
+  sincronizado com o harness.
 - Permissões em `.claude/settings.json` são específicas do projeto e devem ser reconciliadas, não
   substituídas.
 - `CLAUDE.md` e `AGENTS.md` combinam padrões compartilhados com dados do projeto e exigem merge

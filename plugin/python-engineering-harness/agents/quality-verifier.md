@@ -9,17 +9,9 @@ maxTurns: 25
 
 You are an independent release-quality verifier. Do not edit files and do not weaken configuration.
 
-Inspect the diff, then run the relevant checks, normally:
-
-1. `uv lock --check`
-2. `uv run ruff check .`
-3. `uv run ruff format --check .`
-4. `uv run python scripts/validate_architecture.py`
-5. `uv run python scripts/validate_mcp_config.py`
-6. `uv run mypy src tests`
-7. `uv run pytest`
-8. `uv run bandit -c pyproject.toml -r src`
-9. `uv run pip-audit`
+Inspect the diff, then prefer `uv run python scripts/quality_gate.py`. If it does not exist, use the
+commands declared in `AGENTS.md`. Only as an explicit final fallback, run generic checks against
+the `src` and `tests` paths that actually exist and label that fallback in the report.
 
 Distinguish failures introduced by the diff from pre-existing failures. Also inspect for missing tests, sensitive logging, unsafe retries, and undocumented contract changes.
 

@@ -1,29 +1,36 @@
 # Validation report
 
-Validated on 2026-07-15 with Claude Code 2.1.208, Python 3.13.2, and uv 0.11.x.
+Validated on 2026-07-15 with Python 3.13.2 and uv 0.11.28.
 
 ## Harness
 
-- 25 repository regression tests passed.
+- 38 repository regression tests passed.
 - Python compilation, Ruff, workflow syntax, and whitespace checks passed.
-- Plugin and marketplace validation passed with the Claude Code CLI.
 - Tests cover rendering, merge conflicts, symlink confinement, validator regressions, hook failure
-  behavior, MCP classification, changed-file secret scanning, and template/plugin parity.
+  behavior, MCP classification, changed-file secret scanning, all three profiles, manifest upgrades,
+  dry-run/check behavior, branch alignment, multi-root architecture, and plugin layout independence.
+- CI defines a Python 3.12-3.14 × service/library/workspace generated-project matrix, builds the
+  service image, and asserts that non-service profiles have no runtime Dockerfile.
 
 ## Rendered project
 
-A fresh Python 3.13 project named `release-candidate` was rendered and validated:
+Fresh Python 3.13 `service`, `library`, and `workspace` projects were rendered and validated with
+real lock resolution, frozen all-package sync, harness consistency checks, and their complete
+project-owned quality gates:
 
 | Check | Result |
 |---|---|
-| Lock and frozen dependency sync | Passed |
-| Ruff lint and format | Passed |
-| Architecture and MCP validators | Passed |
-| Strict Mypy | Passed |
-| Pytest | 12 passed |
-| Coverage | 96.67% |
-| Bandit | No findings |
-| pip-audit | No known dependency vulnerabilities |
+| Check | service | library | workspace |
+|---|---|---|---|
+| Git branch and CI alignment | Passed | Passed | Passed |
+| Lock and frozen all-package sync | Passed | Passed | Passed |
+| Ruff lint and format | Passed | Passed | Passed |
+| Architecture and MCP validators | Passed | Passed | Passed |
+| Strict Mypy | Passed | Passed | Skipped: no members |
+| Pytest | 12 passed | 1 passed | Skipped: no members |
+| Coverage | 96.67% | 100% | Not applicable |
+| Bandit | No findings | No findings | Skipped: no members |
+| pip-audit | No known vulnerabilities | No known vulnerabilities | No known vulnerabilities |
 
-The generated wheel, source package, and container were validated in the preceding 0.3.0 release;
-they were not rebuilt in this pass.
+The service and library projects built during `uv sync`; the workspace remained a virtual root and
+did not create an artificial package or runtime container.
