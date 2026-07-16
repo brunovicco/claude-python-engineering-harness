@@ -72,5 +72,7 @@ Then run the generated-profile matrix in CI or reproduce each supported profile 
 locally. Link the successful workflow run from `VALIDATION.md`; do not treat a previous run from a
 different commit as evidence for the release.
 
-Pinned Action SHAs and container digests are updated monthly by Dependabot. Review the upstream
-release notes and require the complete CI matrix before merging those updates.
+Dependabot checks pinned GitHub Actions and container references that appear directly in workflow
+and Docker files. The Python base-image digests in `bootstrap.py` are template data and require a
+manual refresh for every supported Python minor. Review upstream release notes, verify each digest
+with `docker buildx imagetools inspect`, and require the complete CI matrix before merging updates.
