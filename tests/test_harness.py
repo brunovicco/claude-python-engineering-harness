@@ -25,6 +25,7 @@ VALUES = {
     "project_name": "test-service",
     "package_name": "test_service",
     "python_version": "3.13",
+    "python_image_digest": bootstrap.PYTHON_IMAGE_DIGESTS["3.13"],
     "ruff_target_version": "py313",
     "profile": "service",
     "governance_profile": "none",
@@ -67,6 +68,14 @@ class BootstrapTests(unittest.TestCase):
         for invalid in ("3.11", "3.15", "3.013", "4.0"):
             with self.subTest(invalid=invalid), self.assertRaises(ValueError):
                 bootstrap.normalize_python_version(invalid)
+
+    def test_supported_python_images_are_pinned_by_digest(self) -> None:
+        self.assertEqual(
+            set(bootstrap.PYTHON_IMAGE_DIGESTS),
+            {f"3.{minor}" for minor in bootstrap.SUPPORTED_PYTHON_MINORS},
+        )
+        for digest in bootstrap.PYTHON_IMAGE_DIGESTS.values():
+            self.assertRegex(digest, r"^sha256:[0-9a-f]{64}$")
 
     def test_python_keyword_is_not_a_package_name(self) -> None:
         with self.assertRaises(ValueError):

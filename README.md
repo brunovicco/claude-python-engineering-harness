@@ -80,6 +80,9 @@ claude
 Useful skills include `/quality-gate`, `/review-change`, `/security-review`, `/review-mcp`, and
 `/prepare-pr`.
 
+For a short hands-on walkthrough, generated tree, profile comparison, and explicit acceptance
+criteria, see the [evaluation guide](docs/EVALUATION.md).
+
 ## Profiles
 
 - `service` keeps Pydantic, structlog, Clean Architecture, Docker, and optional Langfuse tracing.
@@ -163,4 +166,4 @@ Review these first:
 
 See [contributing](CONTRIBUTING.md), [validation](VALIDATION.md),
 [enterprise rollout](docs/ENTERPRISE_ROLLOUT.md), [upgrading](docs/UPGRADING.md), and
-[official sources](SOURCES.md).
+[evaluation](docs/EVALUATION.md), and [official sources](SOURCES.md).

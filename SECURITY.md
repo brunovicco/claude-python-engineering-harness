@@ -3,6 +3,12 @@
 This repository distributes security-sensitive hooks, validators, MCP guardrails, and quality-gate
 configuration. Vulnerabilities in the harness itself should be reported privately.
 
+## Supported versions
+
+Security fixes are provided for the latest release on the default branch. Older releases and
+generated projects are not patched in place; upgrade them to the latest harness release and review
+the migration notes in `docs/UPGRADING.md`.
+
 ## What is in scope
 
 - Bypasses of hooks under `template/.claude/hooks/` or plugin `scripts/`, including destructive
@@ -20,11 +26,11 @@ configuration. Vulnerabilities in the harness itself should be reported privatel
 
 ## Reporting a vulnerability
 
-Until a dedicated security contact is published:
-
-- On GitHub, use **Security** -> **Report a vulnerability**.
-- Otherwise, contact the owner defined in `docs/ENTERPRISE_ROLLOUT.md` through a private internal
-  channel.
+- Prefer GitHub's private vulnerability reporting: open the repository's **Security** tab and choose
+  **Report a vulnerability**.
+- If that option is unavailable, email **bfvicco@gmail.com** with the subject
+  `[SECURITY] claude-python-engineering-harness`. Do not include production secrets or personal data
+  that are not needed to reproduce the issue.
 
 Please do not open a public issue for a suspected vulnerability before the maintainers have had a
 chance to assess and, where warranted, ship a fix.
@@ -35,5 +41,7 @@ chance to assess and, where warranted, ship a fix.
 - Whether the issue reproduces against `template/`, `plugin/python-engineering-harness/`, or both.
 - Claude Code version and operating system when hook or shell behavior is involved.
 
-Allow maintainers time to assess the report and publish a fix with release notes before public
-disclosure. A bypass can propagate to every project generated from an affected version.
+You should receive an acknowledgement within five business days. The initial response will confirm
+the scope, severity triage, and the next update date; remediation time depends on impact and release
+complexity. Coordinate public disclosure with the maintainer. A bypass can propagate to every
+project generated from an affected version.

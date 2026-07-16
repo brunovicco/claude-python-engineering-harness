@@ -1,6 +1,11 @@
 # Validation report
 
-Validated on 2026-07-16 with Python 3.13.
+Validated on 2026-07-16 with Python 3.13 at source commit
+`f54ece8633e30522c8f6295ec3f6cdcb7f3c9410`.
+
+The corresponding [GitHub Actions run](https://github.com/brunovicco/claude-python-engineering-harness/actions/runs/29521026553)
+passed. See `docs/EVALUATION.md` for the commands and acceptance criteria required to produce a new
+report; results from this commit must not be reused for later releases.
 
 ## Harness
 
@@ -21,8 +26,6 @@ Fresh Python 3.13 `service`, `library`, and `workspace` projects were rendered a
 real lock resolution, frozen all-package sync, harness consistency checks, and their complete
 project-owned quality gates:
 
-| Check | Result |
-|---|---|
 | Check | service | library | workspace |
 |---|---|---|---|
 | Git branch and CI alignment | Passed | Passed | Passed |
