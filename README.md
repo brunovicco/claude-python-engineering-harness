@@ -1,5 +1,9 @@
 # Claude Code Python Engineering Harness
 
+[![CI](https://github.com/brunovicco/claude-python-engineering-harness/actions/workflows/harness-quality.yml/badge.svg)](https://github.com/brunovicco/claude-python-engineering-harness/actions/workflows/harness-quality.yml)
+[![Python 3.12-3.14](https://img.shields.io/badge/Python-3.12--3.14-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 Reusable scaffold and Claude Code plugin for consistent Python engineering workflows.
 
 It provides:
@@ -167,4 +171,5 @@ Review these first:
 
 See [contributing](CONTRIBUTING.md), [validation](VALIDATION.md),
 [enterprise rollout](docs/ENTERPRISE_ROLLOUT.md), [upgrading](docs/UPGRADING.md), and
-[evaluation](docs/EVALUATION.md), and [official sources](SOURCES.md).
+[evaluation](docs/EVALUATION.md), [support](SUPPORT.md), [code of conduct](CODE_OF_CONDUCT.md), and
+[official sources](SOURCES.md).

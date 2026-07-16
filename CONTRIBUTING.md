@@ -3,6 +3,9 @@
 The repository distributes the project `template/` and the reusable
 `plugin/python-engineering-harness/`. Keep shared behavior synchronized across both outputs.
 
+Before contributing, read `SUPPORT.md` and `CODE_OF_CONDUCT.md`. Use the issue forms for bug reports
+and feature proposals, and report suspected vulnerabilities privately as described in `SECURITY.md`.
+
 ## Local checks
 
 Start with:

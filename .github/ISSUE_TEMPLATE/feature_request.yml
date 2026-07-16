@@ -1,0 +1,60 @@
+name: Feature request
+description: Propose a focused improvement to the harness, plugin, profiles, or documentation.
+title: "[Feature]: "
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Feature requests are evaluated against the project's scope, maintenance cost, portability,
+        and deterministic enforcement model. See `SUPPORT.md` before submitting.
+  - type: checkboxes
+    id: prerequisites
+    attributes:
+      label: Prerequisites
+      options:
+        - label: I searched existing issues and the roadmap documents for a similar proposal.
+          required: true
+        - label: This proposal applies to the reusable harness rather than one application.
+          required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: Describe the engineering problem or adoption barrier, not only the desired tool.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: Explain expected behavior and which profiles or plugin surfaces would change.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Include existing configuration, extension points, or external tools considered.
+  - type: dropdown
+    id: compatibility
+    attributes:
+      label: Compatibility impact
+      options:
+        - Backward compatible
+        - Requires migration guidance
+        - Intentionally breaking
+        - Unknown
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence and validation
+      description: Link a use case, prototype, specification, or acceptance criteria when available.
+  - type: checkboxes
+    id: contribution
+    attributes:
+      label: Contribution
+      options:
+        - label: I am willing to help implement or test this proposal.
