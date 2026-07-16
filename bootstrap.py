@@ -16,15 +16,19 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-HARNESS_VERSION = "0.5.0"
+HARNESS_VERSION = "0.6.0"
 DEFAULT_BRANCH = "main"
 PROFILES = ("service", "library", "workspace")
+GOVERNANCE_CATALOG_VERSION = "2026.1"
+GOVERNANCE_PROFILES = ("none", "baseline", "ai-assisted", "agentic")
+GOVERNANCE_OVERLAYS = ("dora", "iso-iec-42001", "nist-sp-800-53")
 TOKENS = {
     "{{PROJECT_NAME}}": "project_name",
     "{{PACKAGE_NAME}}": "package_name",
     "{{PYTHON_VERSION}}": "python_version",
     "{{RUFF_TARGET_VERSION}}": "ruff_target_version",
     "{{PROFILE}}": "profile",
+    "{{GOVERNANCE_PROFILE}}": "governance_profile",
 }
 SUPPORTED_PYTHON_MINORS = {12, 13, 14}
 
@@ -93,6 +97,19 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--python", default="3.13", dest="python_version")
     parser.add_argument("--profile", choices=PROFILES, default="service")
     parser.add_argument(
+        "--governance-profile",
+        choices=GOVERNANCE_PROFILES,
+        default="none",
+        help="Select capability-based governance controls",
+    )
+    parser.add_argument(
+        "--governance-overlay",
+        action="append",
+        choices=GOVERNANCE_OVERLAYS,
+        default=[],
+        help="Add a regulatory governance overlay; repeatable",
+    )
+    parser.add_argument(
         "--merge", action="store_true", help="Upgrade without replacing custom files"
     )
     parser.add_argument(
@@ -106,6 +123,12 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         parser.error("--name and --package are required unless --check is used")
     if args.check and any((args.dry_run, args.git_init, args.lock, args.merge)):
         parser.error("--check cannot be combined with --dry-run, --merge, --git-init, or --lock")
+    if args.check and (args.governance_profile != "none" or args.governance_overlay):
+        parser.error("--check reads governance selection from .harness.json")
+    if args.governance_profile == "none" and args.governance_overlay:
+        parser.error("--governance-overlay requires a non-none --governance-profile")
+    if len(args.governance_overlay) != len(set(args.governance_overlay)):
+        parser.error("--governance-overlay cannot contain duplicates")
     return args
 
 
@@ -203,6 +226,68 @@ def _render_source(source: Path, values: dict[str, str]) -> RenderedFile:
     return RenderedFile(data=data, mode=stat.S_IMODE(source.stat().st_mode))
 
 
+def load_json_object(path: Path) -> dict[str, Any]:
+    """Load a JSON object or raise a contextual validation error."""
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise ValueError(f"Invalid governance JSON: {path}") from exc
+    if not isinstance(value, dict):
+        raise ValueError(f"Governance document must contain an object: {path}")
+    return value
+
+
+def compose_governance_profile(root: Path, profile: str, overlays: list[str]) -> dict[str, Any]:
+    """Compose one capability profile with additive regulatory overlays."""
+    selected = load_json_object(root / "governance" / "profiles" / f"{profile}.json")
+    required = selected.get("required_controls")
+    frameworks = selected.get("framework_versions")
+    if not isinstance(required, list) or not all(isinstance(item, str) for item in required):
+        raise ValueError(f"Governance profile {profile!r} has invalid required_controls")
+    if not isinstance(frameworks, dict) or not all(
+        isinstance(key, str) and isinstance(value, str) for key, value in frameworks.items()
+    ):
+        raise ValueError(f"Governance profile {profile!r} has invalid framework_versions")
+
+    control_ids = list(required)
+    framework_versions = dict(frameworks)
+    for overlay in overlays:
+        definition = load_json_object(root / "governance" / "overlays" / f"{overlay}.json")
+        overlay_controls = definition.get("required_controls")
+        overlay_frameworks = definition.get("framework_versions")
+        if not isinstance(overlay_controls, list) or not all(
+            isinstance(item, str) for item in overlay_controls
+        ):
+            raise ValueError(f"Governance overlay {overlay!r} has invalid required_controls")
+        if not isinstance(overlay_frameworks, dict) or not all(
+            isinstance(key, str) and isinstance(value, str)
+            for key, value in overlay_frameworks.items()
+        ):
+            raise ValueError(f"Governance overlay {overlay!r} has invalid framework_versions")
+        for framework, version in overlay_frameworks.items():
+            existing = framework_versions.get(framework)
+            if existing is not None and existing != version:
+                raise ValueError(
+                    f"Conflicting versions for {framework!r}: {existing!r} and {version!r}"
+                )
+            framework_versions[framework] = version
+        control_ids.extend(overlay_controls)
+
+    return {
+        "framework_versions": dict(sorted(framework_versions.items())),
+        "name": profile,
+        "overlays": overlays,
+        "required_controls": list(dict.fromkeys(control_ids)),
+        "version": selected.get("version"),
+    }
+
+
+def rendered_json(value: dict[str, Any]) -> RenderedFile:
+    """Serialize deterministic generated governance JSON."""
+    data = (json.dumps(value, indent=2, sort_keys=True) + "\n").encode()
+    return RenderedFile(data=data, mode=0o644)
+
+
 def _excluded(relative: Path, profile: str) -> bool:
     rendered = relative.as_posix()
     for prefix in PROFILE_EXCLUDES[profile]:
@@ -211,8 +296,15 @@ def _excluded(relative: Path, profile: str) -> bool:
     return False
 
 
-def rendered_profile(root: Path, profile: str, values: dict[str, str]) -> dict[Path, RenderedFile]:
-    """Compose the service-compatible base with an optional profile overlay."""
+def rendered_profile(
+    root: Path,
+    profile: str,
+    values: dict[str, str],
+    governance_profile: str = "none",
+    governance_overlays: list[str] | None = None,
+) -> dict[Path, RenderedFile]:
+    """Compose technical and governance profile inputs into one standalone project."""
+    governance_overlays = governance_overlays or []
     files: dict[Path, RenderedFile] = {}
     base = root / "template"
     for source in sorted(base.rglob("*")):
@@ -220,6 +312,8 @@ def rendered_profile(root: Path, profile: str, values: dict[str, str]) -> dict[P
             continue
         relative = source.relative_to(base)
         if "__pycache__" in relative.parts or _excluded(relative, profile):
+            continue
+        if governance_profile == "none" and relative.parts[0] == "governance":
             continue
         files[destination_for(relative, values)] = _render_source(source, values)
 
@@ -230,6 +324,16 @@ def rendered_profile(root: Path, profile: str, values: dict[str, str]) -> dict[P
                 continue
             relative = destination_for(source.relative_to(overlay), values)
             files[relative] = _render_source(source, values)
+    if governance_profile != "none":
+        governance = root / "governance"
+        files[Path("governance/control-catalog.json")] = _render_source(
+            governance / "catalog" / "controls.json", values
+        )
+        files[Path("governance/governance-profile.json")] = rendered_json(
+            compose_governance_profile(root, governance_profile, governance_overlays)
+        )
+        for schema in sorted((governance / "schemas").glob("*.json")):
+            files[Path("governance/schemas") / schema.name] = _render_source(schema, values)
     return files
 
 
@@ -334,6 +438,8 @@ def build_manifest(
     *,
     root: Path,
     profile: str,
+    governance_profile: str,
+    governance_overlays: list[str],
     python_version: str,
     changes: list[PlannedChange],
     previous: dict[str, dict[str, Any]],
@@ -354,6 +460,9 @@ def build_manifest(
     return {
         "version": HARNESS_VERSION,
         "profile": profile,
+        "governanceProfile": governance_profile,
+        "governanceOverlays": governance_overlays,
+        "governanceCatalogVersion": GOVERNANCE_CATALOG_VERSION,
         "python": python_version,
         "sourceCommit": commit,
         "sourceDirty": dirty,
@@ -448,6 +557,28 @@ def check_target(target: Path) -> list[str]:
         )
     if manifest.get("profile") not in PROFILES:
         errors.append(f"unknown harness profile: {manifest.get('profile')!r}")
+    governance_profile = manifest.get("governanceProfile")
+    governance_overlays = manifest.get("governanceOverlays")
+    if governance_profile not in GOVERNANCE_PROFILES:
+        errors.append(f"unknown governance profile: {governance_profile!r}")
+    if not isinstance(governance_overlays, list) or not all(
+        isinstance(item, str) and item in GOVERNANCE_OVERLAYS for item in governance_overlays
+    ):
+        errors.append(f"invalid governance overlays: {governance_overlays!r}")
+    elif len(governance_overlays) != len(set(governance_overlays)):
+        errors.append("duplicate governance overlays")
+    if governance_profile == "none" and governance_overlays:
+        errors.append("governance overlays require an enabled governance profile")
+    if manifest.get("governanceCatalogVersion") != GOVERNANCE_CATALOG_VERSION:
+        errors.append(
+            "governance catalog version is "
+            f"{manifest.get('governanceCatalogVersion')!r}; "
+            f"expected {GOVERNANCE_CATALOG_VERSION!r}"
+        )
+    if governance_profile in GOVERNANCE_PROFILES and governance_profile != "none":
+        governance_manifest = target / "governance" / "governance-profile.json"
+        if not governance_manifest.is_file() or governance_manifest.is_symlink():
+            errors.append("enabled governance profile is missing governance-profile.json")
 
     for relative, record in sorted(manifest_files(manifest).items()):
         path = target / relative
@@ -532,6 +663,7 @@ def main(argv: list[str] | None = None) -> int:
         "python_version": python_version,
         "ruff_target_version": ruff_target_version,
         "profile": args.profile,
+        "governance_profile": args.governance_profile,
     }
 
     if target.exists() and any(target.iterdir()) and not args.merge and not args.dry_run:
@@ -543,11 +675,19 @@ def main(argv: list[str] | None = None) -> int:
 
     previous_manifest = load_manifest(target)
     previous_files = manifest_files(previous_manifest)
-    rendered = rendered_profile(root, args.profile, values)
+    rendered = rendered_profile(
+        root,
+        args.profile,
+        values,
+        args.governance_profile,
+        args.governance_overlay,
+    )
     changes = plan_changes(rendered, target, previous_files)
     manifest = build_manifest(
         root=root,
         profile=args.profile,
+        governance_profile=args.governance_profile,
+        governance_overlays=args.governance_overlay,
         python_version=python_version,
         changes=changes,
         previous=previous_files,
@@ -576,12 +716,18 @@ def main(argv: list[str] | None = None) -> int:
         else:
             run_checked(["uv", "lock"], target)
 
-    print(f"Harness {HARNESS_VERSION} ({args.profile}) rendered in {target}")
+    governance_label = args.governance_profile
+    if args.governance_overlay:
+        governance_label += f" + {', '.join(args.governance_overlay)}"
+    print(
+        f"Harness {HARNESS_VERSION} ({args.profile}; governance: {governance_label}) "
+        f"rendered in {target}"
+    )
     if conflicts:
         print("Review generated conflict files:")
         for conflict in conflicts:
             print(f"  - {conflict.relative_to(target)}")
-    print("Next: review AGENTS.md, .claude/settings.json, and docs/MCP.md")
+    print("Next: review AGENTS.md, .claude/settings.json, docs/MCP.md, and governance/ when enabled")
     return 0
 
 

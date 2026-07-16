@@ -22,7 +22,21 @@ def load_settings(root: Path) -> dict[str, object]:
     """Load harness quality settings from pyproject.toml."""
     with (root / "pyproject.toml").open("rb") as handle:
         project = tomllib.load(handle)
-    return project.get("tool", {}).get("engineering-harness", {}).get("quality", {})
+    tool = project.get("tool")
+    if not isinstance(tool, dict):
+        return {}
+    harness = tool.get("engineering-harness")
+    if not isinstance(harness, dict):
+        return {}
+    quality = harness.get("quality")
+    return quality if isinstance(quality, dict) else {}
+
+
+def string_list(value: object, default: list[str]) -> list[str]:
+    """Return a validated list of strings or a safe default."""
+    if not isinstance(value, list) or not all(isinstance(item, str) for item in value):
+        return default
+    return value
 
 
 def expand_roots(root: Path, patterns: list[str]) -> list[str]:
@@ -40,8 +54,8 @@ def expand_roots(root: Path, patterns: list[str]) -> list[str]:
 def configured_checks(root: Path) -> list[Check]:
     """Build commands from project-owned source and test roots."""
     settings = load_settings(root)
-    source_patterns = [str(item) for item in settings.get("source-roots", ["src"])]
-    test_patterns = [str(item) for item in settings.get("test-roots", ["tests"])]
+    source_patterns = string_list(settings.get("source-roots"), ["src"])
+    test_patterns = string_list(settings.get("test-roots"), ["tests"])
     source_roots = expand_roots(root, source_patterns)
     test_roots = expand_roots(root, test_patterns)
     type_roots = [*source_roots, *test_roots]
@@ -52,6 +66,7 @@ def configured_checks(root: Path) -> list[Check]:
         Check("format", ("ruff", "format", "--check", ".")),
         Check("architecture", (sys.executable, "scripts/validate_architecture.py")),
         Check("mcp", (sys.executable, "scripts/validate_mcp_config.py")),
+        Check("governance", (sys.executable, "scripts/governance_gate.py")),
     ]
     checks.append(Check("typing", ("mypy", *type_roots) if type_roots else ()))
     checks.append(Check("tests", ("pytest",) if test_roots else ()))

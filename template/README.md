@@ -1,6 +1,7 @@
 # {{PROJECT_NAME}}
 
-Python {{PYTHON_VERSION}} project using uv and the team Claude Code engineering harness.
+Python {{PYTHON_VERSION}} project using uv and the team Claude Code engineering harness with the
+`{{PROFILE}}` technical profile and `{{GOVERNANCE_PROFILE}}` governance profile.
 
 ## Development
 
@@ -16,6 +17,9 @@ uv run python scripts/quality_gate.py
 ```
 
 List or select checks with `--list` and `--check NAME`.
+
+When governance is enabled, maintain the project-owned records under `governance/`. The gate writes
+metadata-only evidence to `build/governance-evidence/governance-report.json`.
 
 ## Container
 

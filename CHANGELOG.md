@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.6.0 - 2026-07-16
+
+### Added
+
+- Opt-in `baseline`, `ai-assisted`, and `agentic` governance profiles, independently composable
+  with DORA, ISO/IEC 42001, and NIST SP 800-53 overlays.
+- A versioned canonical control catalog with crosswalks for NIST AI RMF, CIS Controls, MITRE ATLAS,
+  OWASP LLM, and OWASP Agentic, plus schemas and project-owned governance records.
+- A deterministic governance gate for control evidence, selected profiles, risks, and expiring
+  exceptions, integrated into the generated project quality gate.
+
+### Changed
+
+- `.harness.json` now records the governance profile, overlays, and catalog version; governance
+  remains disabled by default for backward-compatible project generation.
+- Updated plugin and marketplace manifests to version 0.6.0.
+
 ## 0.5.0 - 2026-07-15
 
 ### Added

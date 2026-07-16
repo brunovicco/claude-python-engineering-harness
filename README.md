@@ -8,6 +8,7 @@ It provides:
 - a project-owned quality runner shared by CI, documentation, skills, and agents;
 - an optional plugin for sharing generic agents, skills, and safety hooks;
 - opt-in MCP governance and LLM observability;
+- opt-in, machine-readable governance profiles and regulatory overlays;
 - deterministic quality gates that complement model-based review.
 
 ## Quick start
@@ -27,6 +28,23 @@ python3 bootstrap.py \
 `service` is the compatibility-preserving default. Select `--profile library` for a framework-
 neutral package or `--profile workspace` for a virtual uv root with no artificial package or
 runtime container.
+
+Governance is an independent generator dimension and remains disabled by default. Enable a
+capability profile and any additive regulatory overlays when the project needs them:
+
+```bash
+python3 bootstrap.py \
+  --name payments-api \
+  --package payments_api \
+  --target ../payments-api \
+  --governance-profile agentic \
+  --governance-overlay dora \
+  --governance-overlay iso-iec-42001
+```
+
+Governance profiles are `none`, `baseline`, `ai-assisted`, and `agentic`. Available overlays are
+`dora`, `iso-iec-42001`, and `nist-sp-800-53`. They select versioned controls and evidence
+requirements; they do not claim that a repository or organization is compliant or certified.
 
 Apply the harness to an existing repository without replacing existing files:
 
@@ -83,6 +101,8 @@ All profiles share security hooks, MCP policy, CI, `.harness.json`, and
 - a GitHub Actions workflow that invokes the same project quality runner;
 - service-only Docker and optional Langfuse metadata tracing;
 - MCP examples, validation, and managed-policy guidance.
+- when enabled, a control catalog snapshot, inventories, assessments, schemas, risk records, and a
+  governance gate that writes metadata-only evidence under `build/governance-evidence/`.
 
 The generated service is intentionally framework-neutral. Replace its placeholder container command
 and starter modules with the project's actual entrypoint and domain.
@@ -131,6 +151,7 @@ Review these first:
 - source roots and boundaries under `[tool.engineering-harness.architecture]`;
 - permissions and sensitive paths under `.claude/`;
 - `docs/PRIVACY.md`, `docs/MCP.md`, and LLM tracing policy;
+- the selected `governance/` profile, ownership, risks, inventories, assessments, and exceptions;
 - the real package modules, container entrypoint, and deployment-specific checks.
 
 ## Requirements and documentation

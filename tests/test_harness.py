@@ -27,6 +27,7 @@ VALUES = {
     "python_version": "3.13",
     "ruff_target_version": "py313",
     "profile": "service",
+    "governance_profile": "none",
 }
 
 
@@ -168,8 +169,11 @@ class BootstrapTests(unittest.TestCase):
                     manifest = json.loads((target / ".harness.json").read_text(encoding="utf-8"))
                     self.assertEqual(manifest["version"], bootstrap.HARNESS_VERSION)
                     self.assertEqual(manifest["profile"], profile)
+                    self.assertEqual(manifest["governanceProfile"], "none")
+                    self.assertEqual(manifest["governanceOverlays"], [])
                     self.assertIn("files", manifest)
                     self.assertTrue((target / "scripts" / "quality_gate.py").is_file())
+                    self.assertFalse((target / "governance").exists())
                     self.assertTrue(compileall.compile_dir(target, quiet=1))
 
             service = root / "service"
@@ -206,6 +210,70 @@ class BootstrapTests(unittest.TestCase):
             ).lower()
             self.assertNotIn("langfuse", workspace_text)
             self.assertNotIn("mypy src tests", workspace_text)
+
+    def test_governance_profiles_and_overlays_render_versioned_snapshots(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            for governance_profile in bootstrap.GOVERNANCE_PROFILES[1:]:
+                with self.subTest(governance_profile=governance_profile):
+                    target = root / governance_profile
+                    arguments = [
+                        "--name",
+                        f"sample-{governance_profile}",
+                        "--package",
+                        f"sample_{governance_profile.replace('-', '_')}",
+                        "--target",
+                        str(target),
+                        "--governance-profile",
+                        governance_profile,
+                    ]
+                    if governance_profile == "agentic":
+                        arguments.extend(
+                            [
+                                "--governance-overlay",
+                                "dora",
+                                "--governance-overlay",
+                                "iso-iec-42001",
+                            ]
+                        )
+                    self.assertEqual(bootstrap.main(arguments), 0)
+                    manifest = json.loads((target / ".harness.json").read_text(encoding="utf-8"))
+                    selection = json.loads(
+                        (target / "governance/governance-profile.json").read_text(encoding="utf-8")
+                    )
+                    self.assertEqual(manifest["governanceProfile"], governance_profile)
+                    self.assertEqual(
+                        manifest["governanceCatalogVersion"],
+                        bootstrap.GOVERNANCE_CATALOG_VERSION,
+                    )
+                    self.assertEqual(selection["name"], governance_profile)
+                    required = selection["required_controls"]
+                    self.assertEqual(len(required), len(set(required)))
+                    self.assertTrue((target / "governance/control-catalog.json").is_file())
+                    self.assertEqual(bootstrap.check_target(target), [])
+
+            agentic = json.loads(
+                (root / "agentic/governance/governance-profile.json").read_text(encoding="utf-8")
+            )
+            self.assertEqual(agentic["overlays"], ["dora", "iso-iec-42001"])
+            self.assertEqual(agentic["framework_versions"]["dora"], "eu-2022-2554")
+            self.assertIn("CPH-RES-001", agentic["required_controls"])
+
+    def test_governance_overlay_requires_enabled_unique_profile(self) -> None:
+        for arguments in (
+            [
+                "--name", "test", "--package", "test", "--target", "target",
+                "--governance-overlay", "dora",
+            ],
+            [
+                "--name", "test", "--package", "test", "--target", "target",
+                "--governance-profile", "baseline",
+                "--governance-overlay", "dora",
+                "--governance-overlay", "dora",
+            ],
+        ):
+            with self.subTest(arguments=arguments), self.assertRaises(SystemExit):
+                bootstrap.parse_args(arguments)
 
     def test_git_init_uses_main_and_matches_generated_workflow(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -372,6 +440,9 @@ class ValidatorTests(unittest.TestCase):
         cls.quality = load_module(
             "harness_quality_gate", ROOT / "template" / "scripts" / "quality_gate.py"
         )
+        cls.governance = load_module(
+            "harness_governance_gate", ROOT / "template" / "scripts" / "governance_gate.py"
+        )
 
     def test_architecture_resolves_from_import_aliases(self) -> None:
         tree = ast.parse("from package import adapters\nfrom .. import entrypoints\n")
@@ -432,10 +503,53 @@ class ValidatorTests(unittest.TestCase):
                 encoding="utf-8",
             )
             checks = {check.name: check.command for check in self.quality.configured_checks(root)}
+            self.assertIn("governance", checks)
             self.assertIn("typing", checks)
             self.assertIn("security", checks)
             self.assertEqual(checks["typing"], ())
             self.assertEqual(checks["security"], ())
+
+    def test_governance_source_catalog_is_valid(self) -> None:
+        report, errors = self.governance.run_source(ROOT, None)
+        self.assertEqual(errors, [])
+        self.assertEqual(report["status"], "pass")
+        self.assertGreater(report["control_count"], 0)
+
+    def test_governance_gate_rejects_untreated_high_risk_and_expired_exception(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            target = Path(directory) / "project"
+            self.assertEqual(
+                bootstrap.main(
+                    [
+                        "--name", "governed-service",
+                        "--package", "governed_service",
+                        "--target", str(target),
+                        "--governance-profile", "agentic",
+                    ]
+                ),
+                0,
+            )
+            (target / "governance/risks/risk-register.json").write_text(
+                json.dumps(
+                    {"version": "1.0", "risks": [
+                        {"id": "RISK-001", "owner": "service-owner", "severity": "high"}
+                    ]}
+                ),
+                encoding="utf-8",
+            )
+            (target / "governance/exceptions.json").write_text(
+                json.dumps(
+                    {"version": "1.0", "exceptions": [{
+                        "expires_on": "2000-01-01", "id": "EXC-001",
+                        "owner": "service-owner", "status": "approved",
+                    }]}
+                ),
+                encoding="utf-8",
+            )
+            report, errors = self.governance.run_generated(target, None)
+            self.assertEqual(report["status"], "fail")
+            self.assertTrue(any("formal decision" in error for error in errors))
+            self.assertTrue(any("expired" in error for error in errors))
 
     def test_mcp_rejects_unpinned_runner_and_literal_secret_argument(self) -> None:
         config = {
@@ -567,6 +681,16 @@ class HookTests(unittest.TestCase):
 
 class DistributionTests(unittest.TestCase):
     """Keep duplicated security code and machine-readable files valid."""
+
+    def test_governance_json_documents_parse(self) -> None:
+        paths = [
+            *sorted((ROOT / "governance").rglob("*.json")),
+            *sorted((ROOT / "template/governance").rglob("*.json")),
+        ]
+        self.assertTrue(paths)
+        for path in paths:
+            with self.subTest(path=path):
+                self.assertIsInstance(json.loads(path.read_text(encoding="utf-8")), dict)
 
     def test_template_and_plugin_security_scripts_match(self) -> None:
         names = {path.name for path in HOOKS.glob("*.py")}
