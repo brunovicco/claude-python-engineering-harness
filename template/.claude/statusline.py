@@ -33,7 +33,9 @@ def branch(cwd: str) -> str:
             text=True,
             timeout=1,
         )
-    except (OSError, subprocess.SubprocessError):
+    except OSError:
+        return "-"
+    except subprocess.SubprocessError:
         return "-"
     return result.stdout.strip() or "detached"
 
