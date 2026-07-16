@@ -1,15 +1,15 @@
 # Validation report
 
 Validated on 2026-07-16 with Python 3.13 at source commit
-`f54ece8633e30522c8f6295ec3f6cdcb7f3c9410`.
+`97cbabcf4d0cf86ad0a7dcf8c8d1fd28dc5a58fe`.
 
-The corresponding [GitHub Actions run](https://github.com/brunovicco/claude-python-engineering-harness/actions/runs/29521026553)
+The corresponding [GitHub Actions run](https://github.com/brunovicco/claude-python-engineering-harness/actions/runs/29539700291)
 passed. See `docs/EVALUATION.md` for the commands and acceptance criteria required to produce a new
 report; results from this commit must not be reused for later releases.
 
 ## Harness
 
-- 43 repository regression tests passed.
+- 44 repository regression tests passed.
 - Python compilation, Ruff, workflow syntax, and whitespace checks passed.
 - Tests cover rendering, merge conflicts, symlink confinement, validator regressions, hook failure
   behavior, MCP classification, changed-file secret scanning, all three profiles, manifest upgrades,
