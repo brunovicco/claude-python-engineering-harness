@@ -3,6 +3,10 @@
 This guide makes the harness claims reproducible. It separates repository checks from checks run in
 freshly generated projects and records the commands, expected artifacts, and acceptance criteria.
 
+To inspect the result without generating it first, see the public
+[`claude-python-engineering-harness-example`](https://github.com/brunovicco/claude-python-engineering-harness-example)
+repository.
+
 ## Five-minute evaluation
 
 From a clean checkout with Python, Git, and uv installed:

@@ -81,7 +81,8 @@ Useful skills include `/quality-gate`, `/review-change`, `/security-review`, `/r
 `/prepare-pr`.
 
 For a short hands-on walkthrough, generated tree, profile comparison, and explicit acceptance
-criteria, see the [evaluation guide](docs/EVALUATION.md).
+criteria, see the [evaluation guide](docs/EVALUATION.md). A complete generated service is available
+in [`brunovicco/claude-python-engineering-harness-example`](https://github.com/brunovicco/claude-python-engineering-harness-example).
 
 ## Profiles
 
