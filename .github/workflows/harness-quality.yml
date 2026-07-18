@@ -37,12 +37,12 @@ jobs:
       - name: Compile distributed Python
         run: >-
           python -m compileall -q bootstrap.py template/.claude/hooks template/scripts
-          plugin/python-engineering-harness/scripts
+          plugin/python-engineering-harness/scripts scripts
 
       - name: Lint harness distribution
         run: >-
           uvx --from ruff==0.15.20 ruff check --isolated bootstrap.py tests
-          template/.claude/hooks template/scripts plugin/python-engineering-harness/scripts
+          template/.claude/hooks template/scripts plugin/python-engineering-harness/scripts scripts
 
       - name: Validate workflow syntax
         run: node --check template/.claude/workflows/review-branch.js
