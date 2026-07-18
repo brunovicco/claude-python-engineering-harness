@@ -58,11 +58,14 @@ espelhando o README do `engineering-loop-schemas`:
 - Um builder nunca certifica o próprio resultado. Apenas um `verdict`
   derivado mecanicamente pode fazê-lo.
 - Um hard gate é default-FAIL e precisa se reduzir a um comando com código
-  de saída. O conjunto de hard gates que um contrato pode referenciar
-  (`acceptance.hard_gates`) é exatamente o conjunto de verificações
+  de saída. Os hard gates referenciáveis pelo contrato
+  (`acceptance.hard_gates`) são exatamente as verificações
   nomeadas que o `quality_gate.py` deste harness já implementa: `lock`,
   `lint`, `format`, `typing`, `tests`, `security`, `dependencies`,
   `architecture`, `mcp`, `governance`.
+  Verificações obrigatórias de infraestrutura, incluindo `loop-schema-vendor` e
+  `loop-contracts`, protegem proveniência, integridade e validação contratual em todas as
+  execuções; elas não são comandos arbitrários selecionáveis pelo builder.
 - A evidência é vinculada a commits exatos (`baseline_sha`,
   `candidate_sha`) e a um ambiente com hash (`uv_lock_sha256`), de modo que
   um veredito sempre possa ser rastreado até exatamente o que rodou contra
@@ -90,13 +93,18 @@ Toda execução concluída se resolve em exatamente um estado final
 
 ## Vendoring
 
-`template/scripts/_vendor_loop_schemas/` é uma cópia vendorizada literal
-de `src/loop_schemas/` do `engineering-loop-schemas`, em um commit fixado,
-registrado em um comentário de cabeçalho em cada arquivo vendorizado.
-Revendorize a partir do repositório de origem em vez de editar manualmente;
-o único desvio intencional (o diretório do pacote se chama
-`_vendor_loop_schemas`, não `loop_schemas`, para não colidir com a
-denylist `scripts/loop_*` acima) está documentado nesse mesmo cabeçalho.
+`template/scripts/_vendor_loop_schemas/` é um bundle determinístico renderizado a partir do
+`engineering-loop-schemas v0.1.2`, fixado no commit completo
+`0459d61b7b1d4e7b46709e6d3895770553e6fab0`. Seu `manifest.json` registra repositório de origem,
+versão, commit, tamanhos, hashes SHA-256 e a adaptação de import declarada.
+
+O bundle não é uma cópia byte a byte. Durante a renderização, o import de pacote em
+`validate_contract.py` muda de `loop_schemas` para `_vendor_loop_schemas`; isso isola o pacote
+vendorizado e evita colisão com o namespace protegido `scripts/loop_*`. A adaptação está explícita
+no manifesto e coberta por testes de renderização determinística, integridade e adulteração. O
+gate `loop-schema-vendor` verifica o bundle offline em cada quality gate de projeto gerado.
+Corrija o repositório canônico de schemas e renderize uma nova versão, em vez de editar o bundle
+manualmente.
 
 `validate_contract.py` é somente-stdlib. Ler um contrato YAML requer que o
 PyYAML seja importável no ambiente em que `scripts/quality_gate.py`
