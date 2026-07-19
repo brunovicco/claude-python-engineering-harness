@@ -2,6 +2,7 @@
 """Render, upgrade, or check the Python engineering harness."""
 
 import argparse
+import contextlib
 import hashlib
 import json
 import keyword
@@ -16,7 +17,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-HARNESS_VERSION = "0.6.0"
+HARNESS_VERSION = "1.0.0"
 DEFAULT_BRANCH = "main"
 PROFILES = ("service", "library", "workspace")
 GOVERNANCE_CATALOG_VERSION = "2026.1"
@@ -225,10 +226,8 @@ def sha256(data: bytes) -> str:
 
 def _render_source(source: Path, values: dict[str, str]) -> RenderedFile:
     data = source.read_bytes()
-    try:
+    with contextlib.suppress(UnicodeDecodeError):
         data = render_text(data.decode("utf-8"), values).encode("utf-8")
-    except UnicodeDecodeError:
-        pass
     return RenderedFile(data=data, mode=stat.S_IMODE(source.stat().st_mode))
 
 
@@ -734,7 +733,9 @@ def main(argv: list[str] | None = None) -> int:
         print("Review generated conflict files:")
         for conflict in conflicts:
             print(f"  - {conflict.relative_to(target)}")
-    print("Next: review AGENTS.md, .claude/settings.json, docs/MCP.md, and governance/ when enabled")
+    print(
+        "Next: review AGENTS.md, .claude/settings.json, docs/MCP.md, and governance/ when enabled"
+    )
     return 0
 
 

@@ -3,8 +3,8 @@
 import ast
 import compileall
 import contextlib
-import io
 import importlib.util
+import io
 import json
 import re
 import shutil
@@ -273,14 +273,28 @@ class BootstrapTests(unittest.TestCase):
     def test_governance_overlay_requires_enabled_unique_profile(self) -> None:
         for arguments in (
             [
-                "--name", "test", "--package", "test", "--target", "target",
-                "--governance-overlay", "dora",
+                "--name",
+                "test",
+                "--package",
+                "test",
+                "--target",
+                "target",
+                "--governance-overlay",
+                "dora",
             ],
             [
-                "--name", "test", "--package", "test", "--target", "target",
-                "--governance-profile", "baseline",
-                "--governance-overlay", "dora",
-                "--governance-overlay", "dora",
+                "--name",
+                "test",
+                "--package",
+                "test",
+                "--target",
+                "target",
+                "--governance-profile",
+                "baseline",
+                "--governance-overlay",
+                "dora",
+                "--governance-overlay",
+                "dora",
             ],
         ):
             with self.subTest(arguments=arguments), self.assertRaises(SystemExit):
@@ -439,6 +453,11 @@ class BootstrapTests(unittest.TestCase):
 class ValidatorTests(unittest.TestCase):
     """Exercise architecture and MCP policy regressions."""
 
+    architecture: ClassVar[ModuleType]
+    mcp: ClassVar[ModuleType]
+    quality: ClassVar[ModuleType]
+    governance: ClassVar[ModuleType]
+
     @classmethod
     def setUpClass(cls) -> None:
         cls.architecture = load_module(
@@ -532,28 +551,40 @@ class ValidatorTests(unittest.TestCase):
             self.assertEqual(
                 bootstrap.main(
                     [
-                        "--name", "governed-service",
-                        "--package", "governed_service",
-                        "--target", str(target),
-                        "--governance-profile", "agentic",
+                        "--name",
+                        "governed-service",
+                        "--package",
+                        "governed_service",
+                        "--target",
+                        str(target),
+                        "--governance-profile",
+                        "agentic",
                     ]
                 ),
                 0,
             )
             (target / "governance/risks/risk-register.json").write_text(
                 json.dumps(
-                    {"version": "1.0", "risks": [
-                        {"id": "RISK-001", "owner": "service-owner", "severity": "high"}
-                    ]}
+                    {
+                        "version": "1.0",
+                        "risks": [{"id": "RISK-001", "owner": "service-owner", "severity": "high"}],
+                    }
                 ),
                 encoding="utf-8",
             )
             (target / "governance/exceptions.json").write_text(
                 json.dumps(
-                    {"version": "1.0", "exceptions": [{
-                        "expires_on": "2000-01-01", "id": "EXC-001",
-                        "owner": "service-owner", "status": "approved",
-                    }]}
+                    {
+                        "version": "1.0",
+                        "exceptions": [
+                            {
+                                "expires_on": "2000-01-01",
+                                "id": "EXC-001",
+                                "owner": "service-owner",
+                                "status": "approved",
+                            }
+                        ],
+                    }
                 ),
                 encoding="utf-8",
             )
@@ -780,12 +811,12 @@ class DistributionTests(unittest.TestCase):
         offenders = [
             path.relative_to(ROOT)
             for path in ROOT.rglob("*.py")
+            if ".venv" not in path.parts
             if forbidden in path.read_text(encoding="utf-8")
         ]
         self.assertEqual(offenders, [])
         guidance = (ROOT / "template/.claude/rules/python.md").read_text(encoding="utf-8")
         self.assertIn(f"Do not use `{forbidden}`", guidance)
-
 
 
 class LoopFoundationTests(unittest.TestCase):
@@ -893,9 +924,7 @@ class SelfEvaluationWorkflowTests(unittest.TestCase):
     """Cover the report-only self-evaluation workflow (B3)."""
 
     def test_workflow_uses_minimal_pinned_and_credential_safe_actions(self) -> None:
-        content = (ROOT / ".github/workflows/loop-self-evaluation.yml").read_text(
-            encoding="utf-8"
-        )
+        content = (ROOT / ".github/workflows/loop-self-evaluation.yml").read_text(encoding="utf-8")
         self.assertIn("workflow_dispatch:", content)
         self.assertIn('cron: "0 7 * * 1"', content)
         self.assertIn("persist-credentials: false", content)
