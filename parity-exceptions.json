@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "exceptions": [
+    {
+      "id": "profile-library-ci-overlay",
+      "reason": "The library profile inherits the template's .github/workflows/quality.yml unchanged; the Codex sibling ships a profiles/library CI overlay because its template workflow differs. Documented in docs/ARCHITECTURE.md."
+    },
+    {
+      "id": "observability-adapter",
+      "reason": "LLM tracing starter is Langfuse metadata-only (--extra tracing); the Codex sibling ships an OpenTelemetry adapter because Codex exposes native OTel export. Documented in docs/ARCHITECTURE.md."
+    }
+  ]
+}

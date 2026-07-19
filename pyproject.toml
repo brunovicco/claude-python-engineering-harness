@@ -1,0 +1,71 @@
+[project]
+name = "claude-python-engineering-harness"
+version = "0.1.0"
+description = "Claude Code-native bootstrap and engineering controls for Python repositories"
+requires-python = ">=3.12,<3.15"
+dependencies = []
+
+[dependency-groups]
+dev = [
+    "bandit[toml]>=1.8",
+    "mypy>=1.16",
+    "pip-audit>=2.9",
+    "pytest>=8.4",
+    "ruff>=0.12",
+]
+
+[tool.uv]
+package = false
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "C4", "SIM", "RUF", "ANN", "D", "S"]
+ignore = ["ANN401", "D203", "D213"]
+
+[tool.ruff.lint.per-file-ignores]
+"bootstrap.py" = ["S607"]
+"tests/**/*.py" = ["D", "S101", "S603", "S607", "ANN"]
+"template/tests/**/*.py" = ["D", "S101", "ANN"]
+"template/src/**/*.py" = ["D"]
+"template/scripts/**/*.py" = ["D"]
+"template/.claude/hooks/**/*.py" = ["D", "S607"]
+"template/.claude/statusline.py" = ["D"]
+"plugin/**/scripts/**/*.py" = ["D", "S607"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_unused_configs = true
+warn_unused_ignores = true
+show_error_codes = true
+pretty = true
+
+[[tool.mypy.overrides]]
+module = ["tests.*"]
+disallow_untyped_decorators = false
+
+# PyYAML is an optional, YAML-only dependency of the vendored loop-schemas
+# validator (template/scripts/_vendor_loop_schemas/validate_contract.py) and
+# is deliberately not added to this repository's own dependencies while the
+# shared core is in feature freeze; JSON contracts always work without it.
+[[tool.mypy.overrides]]
+module = ["yaml"]
+ignore_missing_imports = true
+
+[tool.bandit]
+exclude_dirs = ["tests", "template/tests"]
+skips = []
+
+[tool.engineering-harness.quality]
+source-roots = ["."]
+test-roots = ["tests"]
+
+[tool.engineering-harness.architecture]
+source-roots = []
+clean-architecture = false

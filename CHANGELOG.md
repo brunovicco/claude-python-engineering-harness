@@ -1,8 +1,32 @@
 # Changelog
 
+All notable changes to the harness are documented here. Harness, development package, and plugin
+versions are independent; see `docs/VERSIONING.md`.
+
+The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the harness uses
+[Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
 ## [Unreleased]
 
+## 1.0.0 - 2026-07-19
+
+First tagged release. Consolidates the loop foundation below and closes the structural-parity gap
+with the sibling `codex-python-engineering-harness` (which consumes releases by tag).
+
 ### Added
+
+- Repository-level `pyproject.toml`, `uv.lock`, and `scripts/quality_gate.py`, so the harness runs
+  the same deterministic gate it installs into generated projects (Ruff, format, Mypy, Bandit,
+  pip-audit, regression tests, governance gate, and the full profile × governance render matrix)
+  on its own code. A new `repository-quality` CI job invokes it.
+- `docs/ARCHITECTURE.md` (Claude-native surface decisions, profile and governance composition,
+  and the documented Langfuse-vs-OpenTelemetry divergence from the Codex sibling) and
+  `docs/VERSIONING.md` (independent harness, development package, and plugin lifecycles).
+- `scripts/parity_check.py` with `parity-manifest.json` and `parity-exceptions.json`: a
+  deterministic check, shared with the Codex sibling, that fails CI when a parity-required
+  artifact is missing and is not declared as an intentional divergence. Wired into CI.
+- A documented language policy in `CONTRIBUTING.md` (English canonical; pt-BR required for
+  `docs/LOOPS`, `docs/UPGRADING`, and `docs/ENTERPRISE_ROLLOUT`).
 
 - Phase 0-1 (report-only) Evidence-Gated Engineering Loop foundation, see `docs/LOOPS.md` /
   `docs/LOOPS.pt-BR.md`:
@@ -26,6 +50,10 @@
     The mandatory `loop-schema-vendor` quality check validates the bundle offline, and regression
     tests prove that manual tampering is rejected. The earlier `75a63eef...` integration described
     below was an intermediate pre-release state and is superseded by this published bundle.
+
+### Changed
+
+- Harness, plugin, and marketplace versions promoted from 0.6.0 to 1.0.0.
 
 ### Fixed
 
