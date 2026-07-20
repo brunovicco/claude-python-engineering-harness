@@ -88,6 +88,23 @@ For a short hands-on walkthrough, generated tree, profile comparison, and explic
 criteria, see the [evaluation guide](docs/EVALUATION.md). A complete generated service is available
 in [`brunovicco/claude-python-engineering-harness-example`](https://github.com/brunovicco/claude-python-engineering-harness-example).
 
+## Five-minute evaluation
+
+Requirements: Python 3.12 or newer and `uv`.
+
+```bash
+target="$(mktemp -d)/harness-evaluation"
+python3 bootstrap.py --name evaluation --package evaluation --target "$target" --profile service
+cd "$target"
+uv sync --all-groups
+uv run python scripts/quality_gate.py
+```
+
+Then inspect `CLAUDE.md`, `.claude/settings.json`, `.claude/rules/`, `.claude/hooks/`, and
+`docs/ARCHITECTURE.md`. This evaluation creates only a disposable local project and requires no
+credentials. Use the harness when you want an opinionated, repository-owned engineering baseline;
+do not use it when an existing project cannot adopt its uv workflow or architectural constraints.
+
 ## Profiles
 
 - `service` keeps Pydantic, structlog, Clean Architecture, Docker, and optional Langfuse tracing.
