@@ -8,6 +8,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Added
+
+- README "Five-minute evaluation" section, matching the sibling
+  `codex-python-engineering-harness`: a disposable, credential-free local evaluation with a
+  single quality-gate command, plus explicit use / do-not-use guidance.
+
 ## 1.0.0 - 2026-07-19
 
 First tagged release. Consolidates the loop foundation below and closes the structural-parity gap
