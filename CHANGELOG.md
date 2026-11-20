@@ -10,6 +10,18 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Security
 
+- **Generated-project change.** `.claude/settings.json` enables Claude Code's Bash sandbox:
+  `enabled: true`, `allowUnsandboxedCommands: false` (no unsandboxed retry), and
+  `autoAllowBashIfSandboxed: false` so approval prompts are unchanged. Writes are limited to the
+  project plus the uv and pip-audit caches, network to `pypi.org` and `files.pythonhosted.org`
+  without a prompt, and the existing `Read` deny rules also deny those reads to commands. Hooks
+  stay as defense in depth. See the generated `docs/DEVELOPMENT.md`.
+- `validate_bash.py` (template and plugin) now inspects the unquoted form of a command and the
+  payload of `bash`/`sh`/`zsh`/`dash`/`ksh -c` and `eval` (up to three levels), expands brace groups,
+  and matches shell globs against sensitive names with shell dotfile semantics. This blocks
+  evasions such as `git reset --ha""rd`, `bash -c '...'`, `cat ./.e?v`, `cat .e*`, `cat .[e]nv`,
+  and `cat .{e,x}nv`, while `ls *`, `rm -f *.pyc`, and `cp pyproject.toml{,.bak}` stay allowed.
+  `git push origin +main` (force-push refspec) is now blocked.
 - Re-vendored the loop-contract validator from `engineering-loop-schemas` v0.3.0
   (`5340d491b46f4fabc967c81bb3e5204104b6b5d8`). The previously vendored v0.1.2 validator accepted
   contracts with unknown properties, arbitrary `version` values, and report-only contracts with
@@ -29,6 +41,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- The low-level disk rule never matched `dd if=/dev/...`: its trailing word boundary required a
+  word character after `if=`. It now blocks `dd if=` as intended.
 - The CI step that validates `template/.claude/workflows/review-branch.js` used `node --check`,
   which is not a faithful parser for Claude Code workflow files: they run as the body of an async
   function (top-level `await` and `return`). Newer Node versions on the current GitHub runner
@@ -38,6 +52,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Changed
 
+- Added `tests/adversarial/bash_hook_corpus.json`, a corpus shared byte-for-byte with the sibling
+  harness and listed in `parity-manifest.json`: regression and evasion cases the hook must deny,
+  benign commands it must allow, and known bypasses that each name the control covering them. Every
+  distributed copy of the hook runs against it; a known bypass that starts being blocked fails the
+  test so it is promoted to a protected case.
 - **Generated-project change; harness generator 1.1.0.** The Evidence-Gated Engineering Loop layer
   (`scripts/_vendor_loop_schemas/`, `validate_loop_contracts.py`, `validate_loop_schema_vendor.py`
   and their quality-gate checks) is now opt-in through `bootstrap.py --loop` instead of being

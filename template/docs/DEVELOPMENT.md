@@ -30,6 +30,18 @@ be excluded from the build context.
 
 Copy `.env.example` only when the application supports local dotenv loading. Never commit `.env` or real credentials.
 
+## Agent sandbox
+
+`.claude/settings.json` enables Claude Code's sandbox for Bash commands. Commands can write only
+inside the project and the uv and pip-audit caches, reach only PyPI without asking, and cannot read
+the files denied to the `Read` tool (`.env*`, `secrets/`, `credentials/`, `~/.ssh`, `~/.aws`),
+because those deny rules also feed the sandbox. `allowUnsandboxedCommands: false` removes the
+unsandboxed retry, and `autoAllowBashIfSandboxed: false` keeps the usual approval prompts. Run
+commands the sandbox cannot host, such as `docker build`, from your own terminal. Where the platform
+cannot sandbox, Claude Code warns and runs commands unsandboxed; organizations that require the
+boundary set `sandbox.failIfUnavailable` in managed settings. The hooks are defense in depth on top
+of this boundary, not a replacement for it.
+
 ## Claude Code
 
 - Run `/memory` to confirm loaded instructions.
