@@ -27,6 +27,15 @@ remains a manual reconciliation.
 If no source version was recorded, compare against the latest harness and treat every difference as
 a manual migration decision.
 
+## Loop layer selection
+
+Since harness 1.1.0 the Evidence-Gated Engineering Loop layer is opt-in and recorded as `loop` in
+`.harness.json`. `--merge` keeps the previous selection: a project whose earlier render tracked
+`scripts/_vendor_loop_schemas/` keeps the layer and receives the `engineering-loop-schemas` v0.3.0
+bundle. Pass `--loop` or `--no-loop` to change it. Disabling leaves the previously generated files
+in place and lists them; remove them manually once no contract under `.loop/contracts/` depends on
+them. See `LOOPS.md`.
+
 ## Files requiring careful review
 
 - `.claude/hooks/` and plugin hook scripts carry enforcement logic and usually should be updated.
