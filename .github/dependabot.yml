@@ -1,17 +1,27 @@
 version: 2
 updates:
+  # Harness CI plus the workflows distributed to generated projects.
   - package-ecosystem: github-actions
-    directory: /
+    directories: ["/", "/template", "/profiles/workspace"]
     schedule:
-      interval: monthly
+      interval: weekly
     groups:
       github-actions:
+        patterns: ["*"]
+
+  # Development tooling locked in uv.lock (pip-audit, ruff, mypy, pytest, bandit).
+  - package-ecosystem: uv
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      dev-tools:
         patterns: ["*"]
 
   - package-ecosystem: docker
     directory: /template
     schedule:
-      interval: monthly
+      interval: weekly
     groups:
       container-images:
         patterns: ["*"]
