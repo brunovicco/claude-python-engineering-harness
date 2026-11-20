@@ -19,6 +19,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   Generated projects previously received an outdated `setup-uv` and, where a tag was used, a
   mutable action reference.
 
+### Fixed
+
+- The CI step that validates `template/.claude/workflows/review-branch.js` used `node --check`,
+  which is not a faithful parser for Claude Code workflow files: they run as the body of an async
+  function (top-level `await` and `return`). Newer Node versions on the current GitHub runner
+  image detect the file as an ES module and reject the top-level `return`, failing every `test`
+  job. The step now compiles each workflow body as an `AsyncFunction`, which matches how the
+  file actually runs and still rejects real syntax errors.
+
 ### Changed
 
 - Updated the harness CI actions: `actions/checkout` v7.0.1, `actions/setup-python` v7.1.0,

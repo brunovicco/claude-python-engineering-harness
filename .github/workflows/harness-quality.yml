@@ -72,7 +72,16 @@ jobs:
           template/.claude/hooks template/scripts plugin/python-engineering-harness/scripts scripts
 
       - name: Validate workflow syntax
-        run: node --check template/.claude/workflows/review-branch.js
+        # Claude Code runs a workflow file as the body of an async function (top-level
+        # await and return), so `node --check` is not a faithful parser: newer Node
+        # versions detect it as an ES module and reject the top-level return.
+        run: >-
+          node -e 'const fs = require("fs");
+          const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
+          for (const file of process.argv.slice(1)) {
+          new AsyncFunction(fs.readFileSync(file, "utf8").replace(/^export\s+/gm, ""));
+          console.log(`workflow syntax ok: ${file}`); }'
+          template/.claude/workflows/*.js
 
       - name: Reject whitespace errors
         run: git diff --check
