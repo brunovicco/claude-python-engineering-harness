@@ -50,6 +50,10 @@ Governance profiles are `none`, `baseline`, `ai-assisted`, and `agentic`. Availa
 `dora`, `iso-iec-42001`, and `nist-sp-800-53`. They select versioned controls and evidence
 requirements; they do not claim that a repository or organization is compliant or certified.
 
+The Evidence-Gated Engineering Loop layer (vendored `engineering-loop-schemas` validators and
+the `loop-schema-vendor` and `loop-contracts` checks) is also opt-in. Add `--loop` when the project
+will hold loop contracts under `.loop/contracts/`; see [loops](docs/LOOPS.md).
+
 Apply the harness to an existing repository without replacing existing files:
 
 ```bash
@@ -128,6 +132,7 @@ All profiles share security hooks, MCP policy, CI, `.harness.json`, and
 - MCP examples, validation, and managed-policy guidance.
 - when enabled, a control catalog snapshot, inventories, assessments, schemas, risk records, and a
   governance gate that writes metadata-only evidence under `build/governance-evidence/`.
+- with `--loop`, a verified, vendored loop-contract validator and its quality-gate checks.
 
 The generated service is intentionally framework-neutral. Replace its placeholder container command
 and starter modules with the project's actual entrypoint and domain.
