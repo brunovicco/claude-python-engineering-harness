@@ -170,6 +170,12 @@ Instructions shape model behavior; they are not an enforcement boundary. Hooks a
 deterministic guardrails, while managed policy, repository protection, identity controls, network
 controls, and OS-level sandboxing provide hard enforcement.
 
+Generated projects enable Claude Code's Bash sandbox in `.claude/settings.json`: writes stay in the
+project and tool caches, only PyPI is reachable without asking, secrets denied to `Read` are
+unreadable by commands, and the unsandboxed retry is disabled. The hooks are tested against an
+adversarial corpus (`tests/adversarial/bash_hook_corpus.json`) that also records the evasions they
+deliberately leave to the sandbox. See the generated `docs/DEVELOPMENT.md`.
+
 MCP is disabled by default. Treat every server as a new trust and data-egress boundary, use
 least-privilege credentials, and keep production mutations outside this harness.
 
